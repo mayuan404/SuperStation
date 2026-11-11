@@ -721,6 +721,29 @@ final class API {
             let t = params["title"] as? String ?? ""
             DispatchQueue.main.async { NSApp.mainWindow?.title = t }
             return NSNull()
+        case "ui.cursor":
+            // 网页侧把 getComputedStyle(el).cursor 回传过来，由 AppKit 直接设，
+            // 绕开 WKWebView 在某些系统版本上不按 CSS 刷新光标的问题。
+            let shape = params["shape"] as? String ?? "default"
+            if !devValue("BNB_CURSOR_DEBUG").isEmpty { appLog("CURSOR \(shape)") }
+            DispatchQueue.main.async {
+                let cursor: NSCursor
+                switch shape {
+                case "pointer": cursor = .pointingHand
+                case "text": cursor = .iBeam
+                case "vertical-text": cursor = .iBeamCursorForVerticalLayout
+                case "col-resize": cursor = .resizeLeftRight
+                case "row-resize": cursor = .resizeUpDown
+                case "grab": cursor = .openHand
+                case "grabbing": cursor = .closedHand
+                case "crosshair": cursor = .crosshair
+                case "not-allowed", "no-drop": cursor = .operationNotAllowed
+                case "context-menu": cursor = .contextualMenu
+                default: cursor = .arrow
+                }
+                (self.bridge?.webView as? CursorWebView)?.applyCursor(cursor)
+            }
+            return NSNull()
 
         case "fs.list":
             let p = params["path"] as? String ?? ""
@@ -1193,6 +1216,25 @@ enum AllowedRoots {
     }
 }
 
+// 光标托管：WKWebView 在某些系统版本上不按 CSS 刷新光标，
+// 这里接管 cursor rect —— 永远只用 JS 经桥接推下来的形状，
+// 不让 AppKit 在指针掠过行间缝隙时把光标复位成箭头（表现为手/箭头抖动）。
+final class CursorWebView: WKWebView {
+    private var desired: NSCursor = .arrow
+
+    override func resetCursorRects() {
+        addCursorRect(bounds, cursor: desired)
+    }
+
+    func applyCursor(_ cursor: NSCursor) {
+        if cursor !== desired {
+            desired = cursor
+            window?.invalidateCursorRects(for: self)
+        }
+        cursor.set()
+    }
+}
+
 final class SchemeHandler: NSObject, WKURLSchemeHandler {
     var webRoot: URL
 
@@ -1350,7 +1392,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         window.title = "SuperWorkStation"
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
-        window.isMovableByWindowBackground = true
+        // 关掉「拖背景移动窗口」：AppKit 会把窗口背景当拖拽区，鼠标停在树行上时
+        // 它把 WebKit 设好的 pointer 光标重置回箭头，表现为手形只闪一下。
+        // 窗口拖动已由 JS 侧 ui.beginDrag（标题栏 mousedown）接管，不依赖这个开关。
+        window.isMovableByWindowBackground = false
+        // 让 AppKit 持续投递 mouseMoved，WebKit 才能稳定刷新光标形状
+        window.acceptsMouseMovedEvents = true
         window.minSize = NSSize(width: 640, height: 420)
         window.delegate = self
         window.collectionBehavior = [.fullScreenPrimary]
@@ -1362,7 +1409,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
             forName: NSWindow.didExitFullScreenNotification, object: window, queue: .main
         ) { _ in API.shared.bridge?.emit("ui.fullscreen", ["value": false]) }
 
-        webView = WKWebView(frame: rect, configuration: config)
+        webView = CursorWebView(frame: rect, configuration: config)
         webView.allowsMagnification = false
         if #available(macOS 13.3, *) { webView.isInspectable = true }
 

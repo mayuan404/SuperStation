@@ -62,6 +62,10 @@ export class Sidebar {
   private tab: SidebarTab
   private actions: SidebarActions | null = null
   private cache = new Map<string, Entry[]>()
+  /** 读取失败的目录，用来画一行错误提示而不是静默当空目录 */
+  private failedDirs = new Set<string>()
+  /** 路径 → 条目，键盘回车时要用完整 Entry 去打开 */
+  private byPath = new Map<string, Entry>()
   private remoteStatus = new Map<string, string>()
   private remoteBranch = new Map<string, string>()
   private entrySig = new Map<string, string>()
@@ -104,6 +108,9 @@ export class Sidebar {
     this.localPane = el('div', { class: 'tree-pane local' })
     this.remotePane = el('div', { class: 'tree-pane remote' })
     this.list = el('div', { class: 'tree' }, this.localPane, this.remotePane)
+    this.list.tabIndex = 0
+    this.list.setAttribute('role', 'tree')
+    this.list.addEventListener('keydown', (ev) => this.onTreeKey(ev))
     this.foot = el('div', { class: 'sidebar-foot' })
     this.root = el('aside', { class: 'sidebar' }, this.buildHead(), this.list, this.foot)
     this.applyTab()
@@ -286,6 +293,89 @@ export class Sidebar {
   /** 当前多选的路径 */
   multiSelection(): string[] { return Array.from(this.multi) }
 
+  /** 键盘操作：↑↓ 走行、→ 展开或进子级、← 收起或回父级、Enter/空格 打开 */
+  private onTreeKey(ev: KeyboardEvent): void {
+    const pane = this.tab === 'local' ? this.localPane : this.remotePane
+    const rows = Array.from(pane.querySelectorAll<HTMLElement>('.tree-row'))
+    if (!rows.length) return
+    const cur = document.activeElement as HTMLElement | null
+    const idx = cur && cur.classList.contains('tree-row') ? rows.indexOf(cur) : -1
+    const depthOf = (r: HTMLElement) => Number(r.style.getPropertyValue('--depth') || 0)
+    const focusAt = (i: number) => {
+      const row = rows[Math.max(0, Math.min(rows.length - 1, i))]
+      if (!row) return
+      row.focus()
+      this.markKeyboardSelection(row)
+    }
+    const isDir = (r: HTMLElement) => r.dataset.dir === '1' || r.dataset.root === '1'
+    const toggle = (path: string, expand?: boolean) => {
+      const open = state.expanded.has(path)
+      const want = expand ?? !open
+      if (want === open) return
+      if (want) state.expanded.add(path)
+      else state.expanded.delete(path)
+      this.forceNext = true
+      this.refresh().catch(() => {})
+    }
+    const activate = (row: HTMLElement) => {
+      const path = row.dataset.path || ''
+      if (isDir(row)) { toggle(path); return }
+      const entry = this.byPath.get(path)
+      if (entry) this.actions?.open(entry)
+    }
+    switch (ev.key) {
+      case 'ArrowDown': ev.preventDefault(); focusAt(idx + 1); break
+      case 'ArrowUp': ev.preventDefault(); focusAt(idx <= 0 ? 0 : idx - 1); break
+      case 'Home': ev.preventDefault(); focusAt(0); break
+      case 'End': ev.preventDefault(); focusAt(rows.length - 1); break
+      case 'ArrowRight': {
+        ev.preventDefault()
+        const row = rows[idx]
+        if (!row) { focusAt(0); break }
+        const path = row.dataset.path || ''
+        if (isDir(row)) {
+          if (!state.expanded.has(path)) { toggle(path, true); break }
+          const next = rows[idx + 1]
+          if (next && depthOf(next) > depthOf(row)) focusAt(idx + 1)
+        }
+        break
+      }
+      case 'ArrowLeft': {
+        ev.preventDefault()
+        const row = rows[idx]
+        if (!row) { focusAt(0); break }
+        const path = row.dataset.path || ''
+        if (isDir(row) && state.expanded.has(path)) { toggle(path, false); break }
+        for (let i = idx - 1; i >= 0; i--) {
+          if (depthOf(rows[i]) < depthOf(row)) { focusAt(i); break }
+        }
+        break
+      }
+      case 'Enter':
+      case ' ': {
+        const row = rows[idx] ?? (cur && cur.classList.contains('tree-row') ? cur : null)
+        if (!row) break
+        ev.preventDefault()
+        activate(row)
+        break
+      }
+    }
+  }
+
+  private markKeyboardSelection(row: HTMLElement): void {
+    const pane = row.closest('.tree-pane') as HTMLElement | null
+    if (!pane) return
+    for (const r of Array.from(pane.querySelectorAll('.tree-row.selected')) as HTMLElement[]) r.classList.remove('selected')
+    row.classList.add('selected')
+    const path = row.dataset.path
+    if (!path) return
+    state.selected = path
+    this.multi.clear()
+    this.multi.add(path)
+    this.selAnchor = path
+    this.selPane = pane
+  }
+
   private statusFor(entry: Entry): string {
     if (!this.remoteStatus.size) return ''
     const direct = this.remoteStatus.get(entry.path)
@@ -310,18 +400,31 @@ export class Sidebar {
       const sig = entries.map((e) => e.path + ':' + e.mtime + ':' + e.size).join('|')
       if (this.entrySig.get(dir) !== sig) { this.entrySig.set(dir, sig); this.dirty = true }
       this.cache.set(dir, entries)
+      this.failedDirs.delete(dir)
       return entries
     } catch {
+      this.failedDirs.add(dir)
       return []
     }
   }
 
   async refresh(): Promise<void> {
     this.dirty = false
+    const focused = document.activeElement as HTMLElement | null
+    const focusPath = focused?.classList.contains('tree-row') ? focused.dataset.path : undefined
     try { await this.refreshInner() } catch (e: any) {
       invoke('app.log', { line: 'SIDEBAR ERR ' + (e?.stack ?? String(e)).slice(0, 300) }).catch(() => {})
       throw e
+    } finally {
+      if (focusPath) this.restoreFocus(focusPath)
     }
+  }
+
+  /** 重绘后把键盘焦点还给同一路径的行，避免展开/刷新时焦点掉到 body */
+  private restoreFocus(path: string): void {
+    const pane = this.tab === 'local' ? this.localPane : this.remotePane
+    const row = Array.from(pane.querySelectorAll<HTMLElement>('.tree-row')).find((r) => r.dataset.path === path)
+    row?.focus({ preventScroll: true })
   }
 
   private async refreshInner(): Promise<void> {
@@ -368,13 +471,16 @@ export class Sidebar {
         await this.renderDir(frag, root, 1, token)
       }
     }
+    const scrollTop = this.list.scrollTop
     clear(this.localPane)
     this.localPane.append(frag)
+    this.list.scrollTop = scrollTop
   }
 
   /** 先铺根节点，再逐个补展开的子目录，切过去不会先看到一块空白 */
   private async paintRemote(token: number): Promise<void> {
     const remoteRoots = state.remoteRoots ?? []
+    const scrollTop = this.list.scrollTop
     clear(this.remotePane)
     if (!remoteRoots.length) {
       const hint = el('div', { class: 'tree-empty small clickable' }, '还没有远程工作区\n点下面的「添加远程」挂一个 SSH 仓库')
@@ -400,6 +506,7 @@ export class Sidebar {
         ref = node.nextSibling
       }
     }
+    this.list.scrollTop = scrollTop
   }
 
   /** 后台拉取每个远程仓库的 git 状态，有变化才重画一次树 */
@@ -448,6 +555,9 @@ export class Sidebar {
       dataset: { path: root, root: '1' }
     })
     row.style.setProperty('--depth', '0')
+    row.tabIndex = -1
+    // 内联兜底：样式表若被缓存或层叠覆盖，这里保证悬停仍是手形
+    row.style.cursor = 'pointer'
     const twist = el('div', { class: 'twist' })
     twist.append(icon('chevron'))
     row.append(twist)
@@ -477,6 +587,7 @@ export class Sidebar {
 
     row.addEventListener('click', () => {
       if (Date.now() < this.suppressClickUntil) return
+      row.focus({ preventScroll: true })
       if (kind !== 'remote' && state.vaults.has(root) && !state.vaults.get(root)) {
         this.actions?.openVault({ path: root, isDir: true } as Entry)
         return
@@ -495,11 +606,29 @@ export class Sidebar {
     return row
   }
 
+  /** 目录优先 + 自然序、不区分大小写；和 DSH 文件树的排序一致 */
+  private static sortEntries(entries: Entry[]): Entry[] {
+    return entries.slice().sort((a, b) => {
+      if (a.isDir !== b.isDir) return a.isDir ? -1 : 1
+      return a.displayName.localeCompare(b.displayName, undefined, { numeric: true, sensitivity: 'base' })
+    })
+  }
+
   private async renderDir(parent: Node, dir: string, depth: number, token: number): Promise<void> {
     const entries = await this.load(dir)
     if (token !== this.token) return
-    for (const entry of entries) {
-      if (entry.hidden && !state.settings.showHidden) continue
+    if (this.failedDirs.has(dir)) {
+      const row = el('div', { class: 'tree-empty small' }, `无法读取 ${basename(dir)}`)
+      row.style.setProperty('--depth', String(depth))
+      parent.appendChild(row)
+      return
+    }
+    const visible = Sidebar.sortEntries(entries).filter((entry) => !entry.hidden || state.settings.showHidden)
+    if (!visible.length) {
+      parent.appendChild(el('div', { class: 'tree-empty small' }, '空目录'))
+      return
+    }
+    for (const entry of visible) {
       parent.appendChild(this.row(entry, depth))
       const lockedVault = entry.isDir && entry.vault && !state.vaults.get(entry.path)
       if (entry.isDir && state.expanded.has(entry.path) && !lockedVault) {
@@ -512,11 +641,14 @@ export class Sidebar {
     const expanded = entry.isDir && state.expanded.has(entry.path)
     const isActive = state.activeId === entry.path
     const row = el('div', {
-      class: 'tree-row' + (expanded ? ' open' : '') + (isActive ? ' active' : ''),
+      class: 'tree-row' + (expanded ? ' open' : '') + (isActive ? ' active' : '') + (entry.hidden ? ' hidden-entry' : ''),
       title: entry.path,
       dataset: entry.isDir ? { path: entry.path, dir: '1' } : { path: entry.path }
     })
     row.style.setProperty('--depth', String(depth))
+    row.tabIndex = -1
+    row.style.cursor = 'pointer'
+    this.byPath.set(entry.path, entry)
     const twist = el('div', { class: 'twist' })
     if (entry.isDir) twist.append(icon('chevron'))
     row.append(twist)
@@ -556,6 +688,7 @@ export class Sidebar {
 
     row.addEventListener('click', (ev) => {
       if (Date.now() < this.suppressClickUntil) return
+      row.focus({ preventScroll: true })
       if (ev.metaKey) {
         const pane = row.closest('.tree-pane') as HTMLElement | null
         if (pane !== this.selPane) { this.multi.clear(); this.selPane = pane }

@@ -248,21 +248,40 @@ body {
 }
 
 .tree { flex: 1; overflow: auto; padding: 2px 6px 16px; }
+.tree:focus { outline: none; }
 .tree-row {
   display: flex; align-items: center; gap: 5px;
-  height: 24px; padding: 0 6px 0 calc(6px + var(--depth, 0) * 16px);
+  /* 行高 26px：和 DSH 文件树的呼吸感对齐，行与行之间留出余量 */
+  height: 26px; padding: 0 6px 0 calc(4px + var(--depth, 0) * 14px);
   border-radius: 5px; color: var(--fg-2); white-space: nowrap;
-  cursor: default; position: relative;
+  cursor: pointer; position: relative;
+  /* 缩进引导线：按 --depth 逐级画竖线，只画到当前层级 */
+  background-image: repeating-linear-gradient(90deg, var(--line) 0 1px, transparent 1px 14px);
+  background-repeat: no-repeat;
+  background-position: 10px 0;
+  background-size: calc(var(--depth, 0) * 14px) 100%;
 }
-.tree-row:hover { background: var(--panel-2); }
-.tree-row.selected { background: var(--accent-soft); color: var(--fg); }
-.tree-row.active { background: var(--accent-soft); color: var(--accent); }
-.tree-row .twist { width: 12px; height: 12px; flex: 0 0 auto; color: var(--fg-3); display: grid; place-items: center; }
+.tree-row:hover { background-color: var(--panel-2); }
+.tree-row.selected { background-color: var(--accent-soft); color: var(--fg); }
+.tree-row.active { background-color: var(--accent-soft); color: var(--accent); }
+/* 当前文件：左缘一条发光竖条 */
+.tree-row.active::before {
+  content: ''; position: absolute; left: 0; top: 4px; bottom: 4px; width: 2px;
+  border-radius: 2px; background: var(--accent);
+}
+.tree-row:focus-visible { outline: 1.5px solid var(--accent); outline-offset: -1.5px; }
+.tree-row .twist {
+  width: 14px; height: 14px; flex: 0 0 auto; color: var(--fg-3);
+  display: grid; place-items: center; opacity: 0; transition: opacity .12s var(--ease);
+}
+.tree-row:hover .twist, .tree-row.open .twist, .tree-row:focus-visible .twist { opacity: 1; }
+.tree-row.root-row .twist { opacity: 1; }
 .tree-row .twist svg { width: 10px; height: 10px; transition: transform .12s var(--ease); }
 .tree-row.open > .twist svg { transform: rotate(90deg); }
-.tree-row .ic { width: 15px; height: 15px; flex: 0 0 auto; display: grid; place-items: center; opacity: .95; }
-.tree-row .ic svg { width: 14px; height: 14px; }
-.tree-row .nm { overflow: hidden; text-overflow: ellipsis; font-size: 13.5px; }
+.tree-row .ic { width: 14px; height: 14px; flex: 0 0 auto; display: grid; place-items: center; opacity: .95; }
+.tree-row .ic svg { width: 13px; height: 13px; }
+.tree-row .nm { overflow: hidden; text-overflow: ellipsis; font-size: 13px; }
+.tree-row.hidden-entry .nm { opacity: .55; }
 .tree-row .badge { margin-left: auto; font-size: 11px; color: var(--fg-3); }
 
 .tree-empty { padding: 24px 16px; color: var(--fg-3); font-size: 13px; text-align: center; line-height: 1.7; }
@@ -273,12 +292,12 @@ body {
   display: flex; gap: 4px;
 }
 .sidebar-foot button {
-  flex: 1; height: 26px; border-radius: 6px; border: 1px solid var(--line);
+  flex: 1; height: 30px; border-radius: 6px; border: 1px solid var(--line);
   background: transparent; color: var(--fg-2); font: inherit; font-size: 13px; cursor: default;
   display: inline-flex; align-items: center; justify-content: center; gap: 5px;
 }
 .sidebar-foot button:hover { background: var(--panel-2); color: var(--fg); }
-.sidebar-foot button svg, .sidebar-head > button svg { width: 15px; height: 15px; flex: 0 0 auto; }
+.sidebar-foot button svg, .sidebar-head > button svg { width: 16px; height: 16px; flex: 0 0 auto; }
 
 .resizer {
   width: 5px; margin-left: -5px; flex: 0 0 auto; cursor: col-resize; z-index: 5; position: relative;
@@ -900,7 +919,7 @@ body.dragging-file, body.dragging-file * { cursor: grabbing !important; }
 .browser-list { flex: 1; overflow: auto; outline: none; padding: 4px 0 40px; }
 .browser-row {
   display: grid; grid-template-columns: 1fr 88px 104px; align-items: center; gap: 8px;
-  height: 26px; padding: 0 12px; font-size: 13.5px; color: var(--fg); cursor: default;
+  height: 26px; padding: 0 12px; font-size: 13.5px; color: var(--fg); cursor: pointer;
 }
 .browser-row:hover { background: var(--panel-2); }
 .browser-row.selected { background: var(--accent-soft); color: var(--fg); }
@@ -967,7 +986,7 @@ body.dragging-file, body.dragging-file * { cursor: grabbing !important; }
 /* ---------- 终端状态栏 ---------- */
 .term-wrap { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 .term-head {
-  display: flex; align-items: center; gap: 8px; height: 26px; padding: 0 12px;
+  display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 12px;
   border-bottom: 1px solid var(--line); background: var(--panel); font-size: 12.5px; color: var(--fg-2);
 }
 .term-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--fg-3); flex: 0 0 auto; }
@@ -993,18 +1012,18 @@ body.dragging-file, body.dragging-file * { cursor: grabbing !important; }
 }
 
 .term-file-btn {
-  height: 18px; padding: 0 7px; border: 1px solid var(--line-strong); border-radius: 5px;
-  background: transparent; color: var(--fg-2); font: inherit; font-size: 11.5px; cursor: default;
+  height: 24px; padding: 0 9px; border: 1px solid var(--line-strong); border-radius: 6px;
+  background: transparent; color: var(--fg-2); font: inherit; font-size: 12.5px; cursor: pointer;
 }
 .term-file-btn:hover { color: var(--accent); border-color: var(--accent); }
 
 /* ---------- 快速命令 ---------- */
 .term-quick-btn {
-  display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto;
-  height: 18px; padding: 0 7px; border: 1px solid var(--line-strong); border-radius: 5px;
-  background: transparent; color: var(--fg-2); font: inherit; font-size: 11.5px; cursor: default;
+  display: inline-flex; align-items: center; gap: 5px; flex: 0 0 auto;
+  height: 24px; padding: 0 9px; border: 1px solid var(--line-strong); border-radius: 6px;
+  background: transparent; color: var(--fg-2); font: inherit; font-size: 12.5px; cursor: pointer;
 }
-.term-quick-btn svg { width: 12px; height: 12px; }
+.term-quick-btn svg { width: 14px; height: 14px; }
 .term-quick-btn:hover:not(:disabled) { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
 .term-quick-btn:disabled { opacity: .45; }
 
@@ -1014,25 +1033,25 @@ body.dragging-file, body.dragging-file * { cursor: grabbing !important; }
   background: var(--elev); border: 1px solid var(--line); border-radius: 9px; box-shadow: var(--shadow);
 }
 .qc-filter {
-  height: 26px; padding: 0 8px; border: 1px solid var(--line); border-radius: 6px;
+  height: 30px; padding: 0 8px; border: 1px solid var(--line); border-radius: 6px;
   background: var(--bg); color: var(--fg); font: inherit; font-size: 12.5px; outline: none;
 }
 .qc-filter:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 .qc-list { display: flex; flex-direction: column; gap: 1px; max-height: 300px; overflow: auto; }
 .qc-item {
-  display: flex; align-items: center; gap: 6px; padding: 5px 8px; border-radius: 6px;
-  font-size: 13px; color: var(--fg); white-space: nowrap; overflow: hidden; cursor: default;
+  display: flex; align-items: center; gap: 7px; padding: 7px 9px; border-radius: 6px;
+  font-size: 13.5px; color: var(--fg); white-space: nowrap; overflow: hidden; cursor: pointer;
 }
 .qc-item .qc-name { overflow: hidden; text-overflow: ellipsis; }
 .qc-item:hover, .qc-item.sel { background: var(--accent-soft); color: var(--accent); }
 .qc-empty { color: var(--fg-3); font-size: 12.5px; padding: 8px; line-height: 1.6; }
 .qc-manage {
-  display: flex; align-items: center; gap: 6px; padding: 6px 8px; margin-top: 2px;
+  display: flex; align-items: center; gap: 7px; padding: 8px 9px; margin-top: 3px;
   border: 0; border-top: 1px solid var(--line); border-radius: 6px;
-  background: transparent; color: var(--fg-3); font: inherit; font-size: 12px; cursor: default;
+  background: transparent; color: var(--fg-3); font: inherit; font-size: 12.5px; cursor: pointer;
 }
 .qc-manage:hover { color: var(--accent); background: var(--panel-2); }
-.qc-manage svg { width: 12px; height: 12px; }
+.qc-manage svg { width: 14px; height: 14px; }
 
 .qc-hint { color: var(--fg-3); font-size: 12px; line-height: 1.7; margin-bottom: 6px; }
 .qc-rows { display: flex; flex-direction: column; gap: 2px; max-height: 300px; overflow: auto; margin-bottom: 8px; }
@@ -1117,14 +1136,14 @@ body.dragging-file, body.dragging-file * { cursor: grabbing !important; }
 
 .term-search { display: flex; align-items: center; gap: 4px; margin-left: 8px; }
 .term-search-input {
-  height: 20px; width: 180px; border: 1px solid var(--line-strong); border-radius: 5px;
-  background: var(--bg); color: var(--fg); font: inherit; font-size: 11.5px; padding: 0 7px; outline: none;
+  height: 24px; width: 190px; border: 1px solid var(--line-strong); border-radius: 6px;
+  background: var(--bg); color: var(--fg); font: inherit; font-size: 12.5px; padding: 0 8px; outline: none;
   user-select: text;
 }
 .term-search-input:focus { border-color: var(--accent); }
 .term-search-btn {
-  height: 20px; min-width: 20px; border: 0; border-radius: 4px; background: transparent;
-  color: var(--fg-2); font-size: 11px; padding: 0 4px; cursor: default;
+  height: 24px; min-width: 24px; border: 0; border-radius: 5px; background: transparent;
+  color: var(--fg-2); font-size: 12px; padding: 0 5px; cursor: pointer;
 }
 .term-search-btn:hover { background: var(--panel-2); color: var(--fg); }
 

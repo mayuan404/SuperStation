@@ -13,6 +13,52 @@ import { openSettings, openShortcuts, themePalette } from './ui/settings'
 import { openQuickCommandManager } from './ui/quickcmd'
 import { remoteRootPath } from './ui/sidebar'
 import { ctx } from './lib/ctx'
+
+// WKWebView 在部分系统版本上不会按 CSS 刷新光标（手形只在极少数帧出现）。
+// 这里把每一帧下鼠标所在元素的计算光标值经桥接推给原生，由 AppKit 直接 set，
+// 只在该值变化时发一次，开销可忽略。
+function installCursorBridge(): void {
+  let last = ''
+  let lastAt = 0
+  let queued = false
+  let defaultTimer = 0
+  const send = (shape: string) => {
+    last = shape
+    lastAt = performance.now()
+    invoke('ui.cursor', { shape }).catch(() => {})
+  }
+  // 切到手形立即生效；切回箭头延迟 80ms 确认，避免鼠标掠过行间缝隙时手/箭头抖动
+  const push = (shape: string) => {
+    const now = performance.now()
+    if (shape === 'default') {
+      if (last === 'default' && now - lastAt < 80) return
+      if (defaultTimer) return
+      defaultTimer = window.setTimeout(() => {
+        defaultTimer = 0
+        if (last !== 'default') send('default')
+      }, 80)
+      return
+    }
+    if (defaultTimer) { window.clearTimeout(defaultTimer); defaultTimer = 0 }
+    if (shape === last && now - lastAt < 80) return
+    send(shape)
+  }
+  const normalize = (v: string) => (!v || v === 'auto' ? 'default' : v)
+  document.addEventListener('mousemove', (ev) => {
+    if (queued) return
+    queued = true
+    requestAnimationFrame(() => {
+      queued = false
+      const t = ev.target as HTMLElement | null
+      if (!t || t.nodeType !== 1) { push('default'); return }
+      push(normalize(getComputedStyle(t).cursor))
+    })
+  }, { passive: true })
+  window.addEventListener('blur', () => {
+    if (defaultTimer) { window.clearTimeout(defaultTimer); defaultTimer = 0 }
+    send('default')
+  })
+}
 import { terminalMenu, openTerminalMenuAtCenter, registerRemoteRoots, addRemoteRoot, removeRemoteRoot, remoteRootMenu, gitAction, sshForm, openTerminal, openRemote, remoteSaveQueue } from './ui/sessions'
 import { TermSession, type TermProfile } from './ui/terminal'
 import { Sidebar, type Entry } from './ui/sidebar'
@@ -125,6 +171,8 @@ function buildShell(): void {
     if (!draggable(ev.target)) return
     invoke('ui.zoomWindow').catch(() => {})
   })
+
+  installCursorBridge()
 
   sidebar = new Sidebar()
 
