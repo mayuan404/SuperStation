@@ -6,7 +6,7 @@
 html, body { height: 100%; margin: 0; overflow: hidden; }
 body {
   font-family: -apple-system, "SF Pro Text", "Helvetica Neue", "PingFang SC", "Hiragino Sans GB", sans-serif;
-  font-size: 14px;
+  font-size: 13px;
   color: var(--fg);
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
@@ -17,8 +17,8 @@ body {
 :root {
   --sidebar-w: 248px;
   --titlebar-h: 30px;
-  --tabbar-h: 32px;
-  --statusbar-h: 26px;
+  --tabbar-h: 34px;
+  --statusbar-h: 24px;
   --radius: 8px;
   --mono: "SF Mono", ui-monospace, "JetBrains Mono", Menlo, monospace;
   --editor-font-size: 14px;
@@ -165,10 +165,10 @@ body {
 }
 
 .titlebar .tb-title {
-  font-size: 13.5px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 500;
   color: var(--fg-2);
-  letter-spacing: .2px;
+  letter-spacing: .1px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -178,11 +178,11 @@ body {
 .titlebar .spacer { flex: 1; }
 
 .tb-btn {
-  height: 22px; min-width: 24px; padding: 0 6px;
+  height: 24px; min-width: 24px; padding: 0 6px;
   display: inline-flex; align-items: center; justify-content: center; gap: 4px;
   border-radius: 5px; border: 1px solid transparent;
   background: transparent; color: var(--fg-2);
-  font: inherit; font-size: 12.5px; cursor: default;
+  font: inherit; font-size: 12px; cursor: default;
   transition: background .12s var(--ease), color .12s var(--ease);
 }
 .tb-btn:hover { background: var(--panel-2); color: var(--fg); }
@@ -209,14 +209,14 @@ body {
 
 .sidebar-head {
   display: flex; align-items: center; gap: 6px;
-  padding: 10px 10px 6px 12px;
-  font-size: 12px; font-weight: 600; letter-spacing: .4px;
-  color: var(--fg-3); text-transform: uppercase;
+  padding: 8px 8px 6px 10px;
+  font-size: 11.5px; font-weight: 500; letter-spacing: .1px;
+  color: var(--fg-3); text-transform: none;
 }
 .sidebar-head .spacer { flex: 1; }
 .sidebar-head > button {
   border: 0; background: transparent; color: var(--fg-3); cursor: pointer;
-  width: 22px; height: 22px; border-radius: 5px; display: grid; place-items: center; padding: 0;
+  width: 24px; height: 24px; border-radius: 6px; display: grid; place-items: center; padding: 0;
 }
 .sidebar-head > button:hover { background: var(--panel-2); color: var(--fg); }
 
@@ -228,17 +228,21 @@ body {
 }
 .side-tab {
   display: inline-flex; align-items: center; gap: 5px;
-  height: 22px; padding: 0 9px; border: 0; border-radius: 5px;
-  background: transparent; color: var(--fg-3); font: inherit; font-size: 12px; font-weight: 600;
+  height: 24px; padding: 0 9px; border: 0; border-radius: 5px;
+  background: transparent; color: var(--fg-2); font: inherit; font-size: 12px; font-weight: 500;
   letter-spacing: 0; text-transform: none; cursor: default;
 }
 .side-tab:hover { color: var(--fg); }
-.side-tab.active { background: var(--elev); color: var(--accent); box-shadow: 0 1px 3px #0000001f; }
-.side-tab svg { width: 13px; height: 13px; flex: 0 0 auto; }
-.side-tab .cnt {
-  font-size: 10.5px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--fg-3);
+.side-tab.active {
+  background: var(--elev); color: var(--fg);
+  box-shadow: 0 1px 2px #00000024, 0 0 0 .5px var(--line);
 }
-.side-tab.active .cnt { color: var(--accent); }
+.side-tab.active svg { color: var(--accent); }
+.side-tab svg { width: 14px; height: 14px; flex: 0 0 auto; }
+.side-tab .cnt {
+  font-size: 10px; font-weight: 500; font-variant-numeric: tabular-nums; color: var(--fg-3);
+}
+.side-tab.active .cnt { color: var(--fg-2); }
 @container (max-width: 215px) {
   .side-tab .lbl { display: none; }
   .side-tab .cnt { display: none; }
@@ -313,10 +317,10 @@ body {
 .tabbar {
   height: var(--tabbar-h);
   flex: 0 0 auto;
-  display: flex; align-items: flex-end; gap: 2px;
-  padding: 0 8px;
+  display: flex; align-items: center; gap: 2px;
+  padding: 0 6px;
   background: var(--panel);
-  border-bottom: 1px solid var(--line);
+  border-bottom: .5px solid var(--line);
   overflow-x: auto; overflow-y: hidden;
   scrollbar-width: none;
 }
@@ -324,33 +328,33 @@ body {
 
 .tab {
   display: flex; align-items: center; gap: 6px;
-  height: 26px; padding: 0 7px 0 9px; max-width: 220px;
-  border-radius: 7px 7px 0 0;
+  height: 28px; padding: 0 8px 0 9px; max-width: 220px;
+  border-radius: 6px;
   color: var(--fg-2); font-size: 12.5px;
-  border: 1px solid transparent; border-bottom: none;
+  border: 0;
   position: relative; cursor: default; flex: 0 0 auto;
-  margin-bottom: -1px;
 }
 .tab:hover { background: var(--panel-2); }
 .tab.active {
-  background: var(--bg); color: var(--fg);
-  border-color: var(--line);
-  box-shadow: 0 1px 0 var(--bg);
+  background: var(--elev); color: var(--fg); font-weight: 500;
+  box-shadow: 0 1px 2px #00000024, 0 0 0 .5px var(--line);
 }
-.tab .ic { display: grid; place-items: center; width: 14px; height: 14px; flex: 0 0 auto; }
+.tab .ic { display: grid; place-items: center; width: 14px; height: 14px; flex: 0 0 auto; color: var(--fg-3); }
+.tab.active .ic { color: var(--fg-2); }
 .tab .ic svg { width: 13px; height: 13px; }
 .tab .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tab .dirty { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex: 0 0 auto; }
 .tab .close {
-  width: 15px; height: 15px; border-radius: 4px; display: grid; place-items: center;
+  width: 16px; height: 16px; border-radius: 4px; display: grid; place-items: center;
   opacity: 0; color: var(--fg-3); flex: 0 0 auto;
 }
-.tab:hover .close, .tab.active .close { opacity: 1; }
+.tab:hover .close, .tab.active .close { opacity: .75; }
 .tab .close:hover { background: var(--line-strong); color: var(--fg); }
 .tab .close svg { width: 9px; height: 9px; }
 
-.tab-add { width: 22px; height: 22px; margin-bottom: 3px; border-radius: 6px; display: grid; place-items: center; color: var(--fg-3); }
+.tab-add { width: 24px; height: 24px; border-radius: 6px; display: grid; place-items: center; color: var(--fg-3); }
 .tab-add:hover { background: var(--panel-2); color: var(--fg); }
+.tab-add svg { width: 14px; height: 14px; }
 
 /* ---------- panes ---------- */
 
@@ -374,8 +378,8 @@ body {
   flex: 0 0 auto;
   display: flex; align-items: center; gap: 12px;
   padding: 0 12px;
-  font-size: 12px; color: var(--fg-3);
-  background: var(--panel); border-top: 1px solid var(--line);
+  font-size: 11.5px; color: var(--fg-3);
+  background: var(--panel); border-top: .5px solid var(--line);
   white-space: nowrap;
 }
 .statusbar .spacer { flex: 1; }
@@ -959,8 +963,9 @@ body.dragging-file, body.dragging-file * { cursor: grabbing !important; }
 .tab.dragging { opacity: .5; }
 .tab.drop-before { box-shadow: inset 2px 0 0 var(--accent); }
 .tab.drop-after { box-shadow: inset -2px 0 0 var(--accent); }
-.tab .tab-lock { width: 14px; height: 14px; display: grid; place-items: center; color: var(--fg-3); flex: 0 0 auto; }
-.tab .tab-lock svg { width: 9px; height: 9px; }
+.tab .tab-lock { width: 12px; height: 12px; display: grid; place-items: center; color: var(--fg-3); flex: 0 0 auto; opacity: 0; }
+.tab:hover .tab-lock, .tab.active .tab-lock { opacity: .65; }
+.tab .tab-lock svg { width: 8px; height: 8px; }
 .tab.locked { font-style: normal; }
 
 /* ---------- 右键菜单对齐 ---------- */
@@ -986,19 +991,19 @@ body.dragging-file, body.dragging-file * { cursor: grabbing !important; }
 /* ---------- 终端状态栏 ---------- */
 .term-wrap { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 .term-head {
-  display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 12px;
-  border-bottom: 1px solid var(--line); background: var(--panel); font-size: 12.5px; color: var(--fg-2);
+  display: flex; align-items: center; gap: 7px; height: 28px; padding: 0 10px;
+  border-bottom: .5px solid var(--line); background: var(--panel); font-size: 12px; color: var(--fg-2);
 }
-.term-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--fg-3); flex: 0 0 auto; }
-.term-name { font-weight: 500; color: var(--fg); }
-.term-meta { font-size: 11.5px; color: var(--fg-3); font-family: var(--mono); }
+.term-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--fg-3); flex: 0 0 auto; }
+.term-name { font-weight: 500; color: var(--fg); font-size: 12px; }
+.term-meta { font-size: 11px; color: var(--fg-3); font-family: var(--mono); }
 .term-head .term-name, .term-head .term-meta {
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .term-head .term-status, .term-head .term-file-btn, .term-head .term-quick-btn {
   flex: 0 0 auto; white-space: nowrap;
 }
-.term-status { font-size: 11.5px; color: var(--fg-3); }
+.term-status { font-size: 11px; color: var(--fg-3); }
 .term-status.pending { color: #d18a00; }
 .term-status.ok { color: #2a9d52; }
 .term-status.bad { color: #d24545; }
@@ -1012,19 +1017,19 @@ body.dragging-file, body.dragging-file * { cursor: grabbing !important; }
 }
 
 .term-file-btn {
-  height: 24px; padding: 0 9px; border: 1px solid var(--line-strong); border-radius: 6px;
-  background: transparent; color: var(--fg-2); font: inherit; font-size: 12.5px; cursor: pointer;
+  height: 22px; padding: 0 7px; border: 0; border-radius: 5px;
+  background: transparent; color: var(--fg-3); font: inherit; font-size: 11.5px; cursor: pointer;
 }
-.term-file-btn:hover { color: var(--accent); border-color: var(--accent); }
+.term-file-btn:hover { color: var(--fg); background: var(--panel-2); }
 
 /* ---------- 快速命令 ---------- */
 .term-quick-btn {
   display: inline-flex; align-items: center; gap: 5px; flex: 0 0 auto;
-  height: 24px; padding: 0 9px; border: 1px solid var(--line-strong); border-radius: 6px;
-  background: transparent; color: var(--fg-2); font: inherit; font-size: 12.5px; cursor: pointer;
+  height: 22px; padding: 0 7px; border: 0; border-radius: 5px;
+  background: transparent; color: var(--fg-3); font: inherit; font-size: 11.5px; cursor: pointer;
 }
-.term-quick-btn svg { width: 14px; height: 14px; }
-.term-quick-btn:hover:not(:disabled) { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+.term-quick-btn svg { width: 13px; height: 13px; }
+.term-quick-btn:hover:not(:disabled) { color: var(--fg); background: var(--panel-2); }
 .term-quick-btn:disabled { opacity: .45; }
 
 .qc-pop {

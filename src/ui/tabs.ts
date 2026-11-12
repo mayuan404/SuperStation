@@ -1,5 +1,5 @@
 import { el, clear } from '../lib/dom'
-import { fileIcon, icon, iconColor } from '../lib/icons'
+import { fileIcon, icon } from '../lib/icons'
 import type { Doc } from '../lib/store'
 
 export interface TabActions {
@@ -20,14 +20,13 @@ export function renderTabs(host: HTMLElement, docs: Doc[], activeId: string | nu
     const active = doc.id === activeId
     const tab = el('div', {
       class: 'tab' + (active ? ' active' : '') + (doc.locked ? ' locked' : ''),
-      title: doc.path || doc.name,
+      title: (doc.path || doc.name) + (doc.locked ? '（已锁定，右键解锁）' : ''),
       draggable: 'true',
       dataset: { id: doc.id }
     })
     const ic = el('div', { class: 'ic' })
     ic.append(doc.kind === 'browser' ? icon('folder-open') : fileIcon(doc.ext))
-    const c = iconColor(doc.ext)
-    if (c && doc.kind !== 'browser') ic.style.color = c
+    // 标签页保持单色图标：彩色扩展名图标只留给文件树，避免顶栏过于花。
     tab.append(ic, el('div', { class: 'nm' }, doc.name))
 
     const dot = el('div', { class: 'tab-dot' })
