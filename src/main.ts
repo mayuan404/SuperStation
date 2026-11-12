@@ -2,6 +2,7 @@ import { invoke, onEvent, fileURL } from './lib/bridge'
 import { el, clear, debounce } from './lib/dom'
 import { icon } from './lib/icons'
 import { basename, detectKind, dirname, extname, humanSize, isEditable, joinPath } from './lib/files'
+import { displayPath, pathVariants, relativePath } from './lib/paths'
 import * as S from './lib/store'
 import { checkJSON } from './lib/jsoncheck'
 import type { Doc } from './lib/store'
@@ -286,6 +287,18 @@ function copyText(text: string, msg = '已拷贝'): void {
   invoke('ui.copy', { text }).then(() => toast(msg)).catch(() => toast('复制失败'))
 }
 
+/**
+ * 「拷贝路径」菜单项：绝对路径去掉 ssh://<rootId> 前缀，另给一条相对工作区根的。
+ * 远程条目在树里用 ssh:// 前缀只是为了区分签名，复制出去没有意义。
+ */
+function pathMenuItems(p: string): any[] {
+  const v = pathVariants(p, S.state.roots, S.state.remoteRoots)
+  return [
+    { label: '拷贝路径（绝对）', icon: 'file', onClick: () => copyText(v.absolute, '已拷贝绝对路径') },
+    { label: '拷贝相对路径', icon: 'file', onClick: () => copyText(v.relative, '已拷贝相对路径') }
+  ]
+}
+
 // 文档区域（编辑器 / 预览）的复制统一走原生剪贴板，不弹 toast
 setClipboardWriter((text) => { invoke('ui.copy', { text }).catch(() => {}) })
 
@@ -300,7 +313,8 @@ function multiMenu(paths: string[], ev: MouseEvent): void {
       for (const p of paths) sidebar.invalidate(dirname(p))
       await sidebar.refresh()
     } },
-    { label: '拷贝路径', icon: 'file', onClick: () => copyText(paths.join('\\n'), `已拷贝 ${paths.length} 条路径`) }
+    { label: '拷贝路径（绝对）', icon: 'file', onClick: () => copyText(paths.map((p) => displayPath(p)).join('\n'), `已拷贝 ${paths.length} 条绝对路径`) },
+    { label: '拷贝相对路径', icon: 'file', onClick: () => copyText(paths.map((p) => relativePath(p, S.state.roots, S.state.remoteRoots)).join('\n'), `已拷贝 ${paths.length} 条相对路径`) }
   ])
 }
 
@@ -504,20 +518,14 @@ function tabMenu(id: string, ev: MouseEvent): void {
     { label: '关闭右侧所有标签', onClick: () => closeRight(id) },
     { sep: true },
     ...(doc.path ? [] : [{ label: '保存…', icon: 'check', sub: '⌘S', onClick: () => saveAsDoc(doc) }]),
-    {
-      label: '拷贝路径',
-      icon: 'copy',
-      onClick: () => copyText(doc.path, '已拷贝路径')
-    },
+    ...pathMenuItems(doc.path),
     {
       label: '拷贝文件名',
       onClick: () => copyText(doc.name, '已拷贝文件名')
     },
-    {
-      label: '在 Finder 中显示',
-      icon: 'external',
-      onClick: () => invoke('ui.reveal', { path: doc.path })
-    }
+    ...(doc.path && !doc.path.startsWith('ssh://')
+      ? [{ label: '在 Finder 中显示', icon: 'external', onClick: () => invoke('ui.reveal', { path: doc.path! }) }]
+      : [])
   ])
 }
 
@@ -878,7 +886,7 @@ function commandPalette(): void {
     { id: 'cycle-view', label: '切换 编辑 / 对比 / 预览', icon: 'split', sub: '⌘E', run: cycleView },
     { id: 'toggle-sidebar', label: '显示 / 隐藏侧边栏', icon: 'sidebar', sub: '⌘B', run: toggleSidebar },
     { id: 'check', label: '检查当前文件语法', icon: 'check', run: () => { const d = S.activeDoc(); if (d) runCheck(d).then(() => toast(d.issues.length ? `发现 ${d.issues.length} 个问题` : '未发现语法问题')) } },
-    { id: 'reveal', label: '在 Finder 中显示当前文件', icon: 'external', run: () => { const d = S.activeDoc(); if (d) invoke('ui.reveal', { path: d.path }) } },
+    { id: 'reveal', label: '在 Finder 中显示当前文件', icon: 'external', run: () => { const d = S.activeDoc(); if (d && d.path && !d.path.startsWith('ssh://')) invoke('ui.reveal', { path: d.path }) } },
     { id: 'encrypt', label: '加密当前文件夹…', icon: 'lock', run: () => S.state.roots[0] && encryptFolder(S.state.roots[0]) },
     { id: 'close-tab', label: '关闭当前标签页', icon: 'close', sub: '⌘W', run: () => S.state.activeId && S.closeDoc(S.state.activeId) },
     { id: 'zoom-in', label: '放大字号', icon: 'plus', sub: '⌘+', run: () => zoom(1) },
@@ -1459,8 +1467,8 @@ function entryMenu(entry: Entry, ev: MouseEvent): void {
   items.push({ label: '剪切', icon: 'cut', sub: '⌘X', onClick: () => { clip = { mode: 'cut', path: entry.path }; toast(`已剪切 ${entry.displayName}`) } })
   if (clip) items.push({ label: '粘贴到此', icon: 'paste', sub: '⌘V', onClick: () => pasteInto(entry.isDir ? entry.path : dirname(entry.path)) })
   items.push({ sep: true })
-  items.push({ label: '在 Finder 中显示', icon: 'external', onClick: () => invoke('ui.reveal', { path: entry.path }) })
-  items.push({ label: '拷贝路径', icon: 'file', onClick: () => copyText(entry.path, '已拷贝路径') })
+  if (!entry.path.startsWith('ssh://')) items.push({ label: '在 Finder 中显示', icon: 'external', onClick: () => invoke('ui.reveal', { path: entry.path }) })
+  items.push(...pathMenuItems(entry.path))
   items.push({ sep: true })
   items.push({ label: '重命名…', icon: 'pencil', onClick: () => renameEntry(entry) })
   items.push({ label: '移到废纸篓', icon: 'trash', danger: true, onClick: () => deleteEntry(entry) })
@@ -1490,8 +1498,8 @@ function rootMenu(root: string, ev: MouseEvent): void {
     { label: '新建文件', icon: 'file-plus', onClick: () => newFile(root) },
     { label: '新建文件夹', icon: 'folder-plus', onClick: () => newFolder(root) },
     { sep: true },
-    { label: '在 Finder 中显示', icon: 'external', onClick: () => invoke('ui.reveal', { path: root }) },
-    { label: '拷贝路径', icon: 'file', onClick: () => copyText(root, '已拷贝路径') },
+    ...(root.startsWith('ssh://') ? [] : [{ label: '在 Finder 中显示', icon: 'external', onClick: () => invoke('ui.reveal', { path: root }) }]),
+    { label: '拷贝路径（绝对）', icon: 'file', onClick: () => copyText(displayPath(root), '已拷贝绝对路径') },
     { sep: true },
     { label: '加密此文件夹…', icon: 'lock', onClick: () => encryptFolder(root) },
     { label: '解除加密（还原文件）…', icon: 'unlock', danger: true, onClick: () => removeVaultEncryption(root) },

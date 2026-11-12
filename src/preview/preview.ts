@@ -561,11 +561,19 @@ function renderOffice(doc: Doc): HTMLElement {
 /* ---------------- rich ---------------- */
 
 function renderHTML(doc: Doc): HTMLElement {
+  // 远端（ssh://）文档没有本地文件：betternotebook://file 只服务本机路径，早先会把
+  // ssh:// 拼成 // 开头的路径，被 AllowedRoots 挡成 403（日志里那串 SCHEME 403）。
+  // 远端改用已读到的正文做 blob，本地仍走自定义 scheme（保留相对资源加载）。
+  const remote = doc.path.startsWith('ssh://')
+  const blob = remote ? URL.createObjectURL(new Blob([doc.text || ''], { type: 'text/html' })) : ''
   const iframe = el('iframe', {
-    src: fileURL(doc.path),
+    src: remote ? blob : fileURL(doc.path),
     sandbox: 'allow-scripts allow-forms allow-popups allow-modals allow-downloads',
     style: { border: '0', width: '100%', height: '100%', background: '#fff' }
   })
+  if (blob) {
+    iframe.addEventListener('load', () => setTimeout(() => URL.revokeObjectURL(blob), 1000), { once: true })
+  }
   // iframe 里也按行选：双击选整行、三击选段落
   const wire = () => {
     try {

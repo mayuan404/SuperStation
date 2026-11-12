@@ -714,8 +714,22 @@ final class API {
             DispatchQueue.main.async { self.beginDrag() }
             return NSNull()
         case "ui.reveal":
+            // activateFileViewerSelecting 在 macOS 26/27 上不再把 Finder 拉到前台（实测
+            // 调用后 frontmost 仍是本应用）。`open -R` 走 LaunchServices，能稳定调起
+            // 并在 Finder 里选中；路径不存在时退回它的父目录。
             let p = params["path"] as? String ?? ""
-            DispatchQueue.main.async { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: p)]) }
+            DispatchQueue.main.async {
+                guard !p.isEmpty else { return }
+                var target = p
+                if !FileManager.default.fileExists(atPath: target) {
+                    target = (p as NSString).deletingLastPathComponent
+                }
+                guard FileManager.default.fileExists(atPath: target) else { return }
+                let proc = Process()
+                proc.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+                proc.arguments = ["-R", target]
+                try? proc.run()
+            }
             return NSNull()
         case "ui.setTitle":
             let t = params["title"] as? String ?? ""

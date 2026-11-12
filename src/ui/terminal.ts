@@ -124,6 +124,27 @@ export class TermSession {
     this.search = new SearchAddon()
     this.term.loadAddon(this.search)
 
+    // OSC 52：让远端程序（tmux 的 set-clipboard、nvim、fzf 等）把文本写进系统剪贴板。
+    // xterm.js 默认忽略这条序列，所以 tmux 里「选中即复制到开发机剪贴板」一直不生效，
+    // 只有反向（macOS → tmux）能通——因为那是浏览器原生粘贴。这里补上正向通道。
+    this.term.parser.registerOscHandler(52, (data: string) => {
+      try {
+        const rest = data.startsWith('52;') ? data.slice(3) : data
+        const sep = rest.indexOf(';')
+        if (sep < 0) return true
+        const payload = rest.slice(sep + 1)
+        if (!payload || payload === '?') return true
+        const bytes = Uint8Array.from(atob(payload), (c) => c.charCodeAt(0))
+        const text = new TextDecoder().decode(bytes)
+        if (!text) return true
+        invoke('ui.copy', { text }).catch(() => {})
+        this.deps.toast('已复制到系统剪贴板', 1200)
+        return true
+      } catch {
+        return true
+      }
+    })
+
     const dot = el('span', { class: 'term-dot' })
     if (profile.color) dot.style.background = profile.color
     const meta = profile.kind === 'ssh'
