@@ -236,7 +236,8 @@ export function openRemote(profile: TermProfile): void {
 }
 
 export function openTerminal(profile: TermProfile): void {
-  const doc = S.createTerminalDoc(profile.name)
+  const detail = profile.kind === 'ssh' ? (profile.host || 'SSH') : '本地'
+  const doc = S.createTerminalDoc(profile.name, detail, profile.color)
   const session = new TermSession(doc.id, profile, {
     onBrowseRemote: (p) => openRemote(p),
     onExit: (ptyId, code) => {

@@ -234,8 +234,8 @@ export function applyTheme(id: string, iconSet = currentIconSet): void {
   const panel = mix(t.bg, t.fg, dark ? 0.045 : 0.035)
   const panel2 = mix(t.bg, t.fg, dark ? 0.10 : 0.075)
   const elev = dark ? mix(t.bg, t.fg, 0.13) : '#ffffff'
-  const fg2 = mix(t.fg, t.bg, dark ? 0.30 : 0.28)
-  const fg3 = mix(t.fg, t.bg, dark ? 0.52 : 0.50)
+  const fg2 = mix(t.fg, t.bg, dark ? 0.30 : 0.24)
+  const fg3 = mix(t.fg, t.bg, dark ? 0.52 : 0.40)
   const [kw, str, num, fn, type] = t.syn
 
   const style = document.documentElement.style
@@ -247,8 +247,8 @@ export function applyTheme(id: string, iconSet = currentIconSet): void {
   set('--fg', t.fg)
   set('--fg-2', fg2)
   set('--fg-3', fg3)
-  set('--line', alpha(t.fg, dark ? 0.09 : 0.08))
-  set('--line-strong', alpha(t.fg, dark ? 0.18 : 0.15))
+  set('--line', alpha(t.fg, dark ? 0.09 : 0.11))
+  set('--line-strong', alpha(t.fg, dark ? 0.18 : 0.19))
   set('--accent', t.accent)
   set('--accent-2', dark ? mix(t.accent, '#ffffff', 0.18) : mix(t.accent, '#000000', 0.15))
   set('--accent-soft', alpha(t.accent, dark ? 0.16 : 0.12))
@@ -266,7 +266,7 @@ export function applyTheme(id: string, iconSet = currentIconSet): void {
   set('--syn-const', num)
   set('--shadow', dark
     ? '0 16px 48px rgba(0,0,0,.5), 0 2px 8px rgba(0,0,0,.4)'
-    : '0 12px 40px rgba(0,0,0,.10), 0 2px 6px rgba(0,0,0,.06)')
+    : '0 10px 30px rgba(0,0,0,.08), 0 1px 4px rgba(0,0,0,.05)')
   style.colorScheme = dark ? 'dark' : 'light'
 
   applyIconSet(iconSet, t)

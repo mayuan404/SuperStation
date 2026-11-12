@@ -27,6 +27,10 @@ export interface Doc {
   issues: Issue[]
   checked: boolean
   locked: boolean
+  /** 终端会话的副标题（如 root@host），用于同名标签区分 */
+  detail?: string
+  /** 终端会话的颜色点 */
+  color?: string
 }
 
 export interface Settings {
@@ -163,7 +167,7 @@ export function setSaveAsHandler(fn: (doc: Doc) => Promise<boolean>): void {
   saveAsHandler = fn
 }
 
-export function createTerminalDoc(name: string): Doc {
+export function createTerminalDoc(name: string, detail = '', color = ''): Doc {
   const doc: Doc = {
     id: `term:${Date.now()}:${Math.random().toString(36).slice(2, 7)}`,
     path: '',
@@ -180,7 +184,9 @@ export function createTerminalDoc(name: string): Doc {
     size: 0,
     issues: [],
     checked: false,
-    locked: false
+    locked: false,
+    detail,
+    color
   }
   state.docs.push(doc)
   setActive(doc.id)

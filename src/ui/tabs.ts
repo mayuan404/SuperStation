@@ -15,19 +15,53 @@ let lastActive: string | null = null
 export function renderTabs(host: HTMLElement, docs: Doc[], activeId: string | null, actions: TabActions): void {
   clear(host)
   let dragId: string | null = null
+  const nameCounts = new Map<string, number>()
+  for (const d of docs) nameCounts.set(d.name, (nameCounts.get(d.name) ?? 0) + 1)
+  const detailCounts = new Map<string, number>()
+  for (const d of docs) {
+    if (d.detail) {
+      const key = `${d.name}|${d.detail}`
+      detailCounts.set(key, (detailCounts.get(key) ?? 0) + 1)
+    }
+  }
+  const detailOrdinals = new Map<string, number>()
 
   for (const doc of docs) {
     const active = doc.id === activeId
     const tab = el('div', {
       class: 'tab' + (active ? ' active' : '') + (doc.locked ? ' locked' : ''),
-      title: (doc.path || doc.name) + (doc.locked ? '（已锁定，右键解锁）' : ''),
+      title: (doc.path || doc.name)
+        + (doc.detail ? ` · ${doc.detail}` : '')
+        + (doc.locked ? '（已锁定，右键解锁）' : ''),
       draggable: 'true',
       dataset: { id: doc.id }
     })
+    if (doc.kind === 'terminal' && doc.color) {
+      const kindDot = el('span', { class: 'tab-kind-dot' })
+      kindDot.style.background = doc.color
+      tab.append(kindDot)
+    }
+
     const ic = el('div', { class: 'ic' })
-    ic.append(doc.kind === 'browser' ? icon('folder-open') : fileIcon(doc.ext))
+    if (doc.kind === 'terminal') ic.append(icon('terminal'))
+    else if (doc.kind === 'sftp') ic.append(icon('external'))
+    else if (doc.kind === 'browser') ic.append(icon('folder-open'))
+    else ic.append(fileIcon(doc.ext))
     // 标签页保持单色图标：彩色扩展名图标只留给文件树，避免顶栏过于花。
     tab.append(ic, el('div', { class: 'nm' }, doc.name))
+
+    if ((nameCounts.get(doc.name) ?? 0) > 1 && doc.detail) {
+      const key = `${doc.name}|${doc.detail}`
+      const sameDetail = detailCounts.get(key) ?? 0
+      let ord = ''
+      if (sameDetail > 1) {
+        const n = (detailOrdinals.get(key) ?? 0) + 1
+        detailOrdinals.set(key, n)
+        ord = `#${n}`
+      }
+      tab.append(el('span', { class: 'tab-sub', title: doc.detail }, doc.detail))
+      if (ord) tab.append(el('span', { class: 'tab-ord', title: `${doc.detail} ${ord}` }, ord))
+    }
 
     const dot = el('div', { class: 'tab-dot' })
     if (doc.issues.length) dot.append(el('div', { class: 'err-dot', title: doc.issues[0].message }))
