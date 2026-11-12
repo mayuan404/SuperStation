@@ -1158,3 +1158,41 @@ body.dragging-file, body.dragging-file * { cursor: grabbing !important; }
 
 /* 全屏时没有交通灯，标题栏不再给左边留空 */
 :root.fullscreen .titlebar { padding-left: 10px; }
+
+/* ---------- 可点击控件统一手型 ----------
+   WKWebView 的 cursor 由 native 桥接读取 computed style，
+   这里统一覆盖各控件原有的 cursor:default，避免只有文件树是手型。 */
+button:not(:disabled),
+.tab,
+.tab-add,
+.side-tab,
+.tb-btn,
+.vs-btn,
+.pdf-btn,
+.opt-btn,
+.term-file-btn:not(:disabled),
+.term-quick-btn:not(:disabled),
+.tree-row,
+.twist,
+.ctx .mi,
+.palette .item,
+.search-hit,
+.recent-row,
+.swatch,
+.picker-row.pickable,
+.remote-picker .picker-row.pickable,
+.qc-main,
+.qc-edit,
+.qc-del,
+.statusbar .chip.clickable,
+.tree-empty.clickable,
+input[type="checkbox"],
+input[type="radio"] {
+  cursor: pointer;
+}
+
+button:disabled,
+.term-file-btn:disabled,
+.term-quick-btn:disabled {
+  cursor: default;
+}
