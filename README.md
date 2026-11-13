@@ -40,9 +40,9 @@ A ~3 MB native shell (Swift + system WebView) that boots instantly: the sidebar 
 ### 要求与安装
 
 - macOS 13+（Apple Silicon 与 Intel 均可，构建脚本默认编译当前架构）
-- 下载 **`SuperWorkStation-0.2.0.dmg`** → 拖进「应用程序」
-- 校验值（0.2.0）：`bd1798d5c87e7dc262e60d0c4b4ca758a807e0119b981e76c5f31114795d87f7`
-- 每个版本的变更见 [CHANGELOG.md](CHANGELOG.md)，本次发布说明见 [RELEASE-0.2.0.md](RELEASE-0.2.0.md)
+- 下载 **`SuperWorkStation-0.3.1.dmg`** → 拖进「应用程序」
+- 校验值（0.3.1）：`77c815bcc9ca0731bc7ac245ac1d5e060713c129f6fbd31bb4b8f50b74ae6d62`
+- 每个版本的变更见 [CHANGELOG.md](CHANGELOG.md)，本次发布说明见 [RELEASE-0.3.1.md](RELEASE-0.3.1.md)
 - 应用为 ad-hoc 签名，首次打开请**右键 → 打开**；若仍被拦：
   ```bash
   xattr -dr com.apple.quarantine /Applications/SuperWorkStation.app
@@ -101,9 +101,9 @@ npm install
 ### Requirements & install
 
 - macOS 13+ (Apple Silicon and Intel; the build script compiles the host architecture)
-- Download **`SuperWorkStation-0.2.0.dmg`**, drag the app into **Applications**
-- SHA-256 (0.2.0): `bd1798d5c87e7dc262e60d0c4b4ca758a807e0119b981e76c5f31114795d87f7`
-- See [CHANGELOG.md](CHANGELOG.md) for per-version notes and [RELEASE-0.2.0.md](RELEASE-0.2.0.md) for this release
+- Download **`SuperWorkStation-0.3.1.dmg`**, drag the app into **Applications**
+- SHA-256 (0.3.1): `77c815bcc9ca0731bc7ac245ac1d5e060713c129f6fbd31bb4b8f50b74ae6d62`
+- See [CHANGELOG.md](CHANGELOG.md) for per-version notes and [RELEASE-0.3.1.md](RELEASE-0.3.1.md) for this release
 - The app is ad-hoc signed — on first launch use **right-click → Open**, or clear the quarantine flag:
   ```bash
   xattr -dr com.apple.quarantine /Applications/SuperWorkStation.app
@@ -148,4 +148,4 @@ MIT
 ## 更新记录
 
 - 每个版本：见 [CHANGELOG.md](CHANGELOG.md)
-- 当前版本 0.2.0 的发布说明（安装、升级、已知限制）：见 [RELEASE-0.2.0.md](RELEASE-0.2.0.md)
+- 当前版本 0.3.1 的发布说明（安装、升级、已知限制）：见 [RELEASE-0.3.1.md](RELEASE-0.3.1.md)

@@ -680,7 +680,7 @@ final class API {
             return NSNull()
 
         case "app.info":
-            return ["version": "0.1.0", "home": NSHomeDirectory(),
+            return ["version": "0.3.1", "home": NSHomeDirectory(),
                     "os": ProcessInfo.processInfo.operatingSystemVersionString,
                     "initial": devValue("BNB_OPEN"),
                     "initialFile": devValue("BNB_FILE"),
