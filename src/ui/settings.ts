@@ -114,6 +114,26 @@ export function openSettings(): void {
     row('自动保存', '停止输入后自动写回磁盘', mkToggle('autoSave'))
     row('显示隐藏文件', '在文件树中显示以 . 开头的文件', mkToggle('showHidden', () => ctx.sidebar?.refresh()))
 
+    const localDirBtn = el('button', { class: 'ghost' }, s.localCwd || '用户主目录（~）')
+    localDirBtn.title = s.localCwd || '点击选择本地终端的默认启动目录'
+    localDirBtn.addEventListener('click', async () => {
+      const p = await invoke<string | null>('ui.openFolder').catch(() => null)
+      if (!p) return
+      s.localCwd = p
+      S.saveSettings()
+      localDirBtn.textContent = p
+      localDirBtn.title = p
+    })
+    const resetDir = el('button', { class: 'ghost' }, '默认')
+    resetDir.title = '恢复为用户主目录'
+    resetDir.addEventListener('click', () => {
+      s.localCwd = ''
+      S.saveSettings()
+      localDirBtn.textContent = '用户主目录（~）'
+      localDirBtn.title = '点击选择本地终端的默认启动目录'
+    })
+    row('本地终端目录', '新开本地终端时的起始目录', el('div', { style: { display: 'flex', gap: '6px' } }, localDirBtn, resetDir))
+
     body.append(el('div', { class: 'sheet-section' }, 'AI 助手'))
     const aiUrlBtn = el('button', { class: 'ghost' }, s.aiBaseUrl || 'https://api.deepseek.com')
     aiUrlBtn.addEventListener('click', async () => {

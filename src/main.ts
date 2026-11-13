@@ -12,6 +12,7 @@ import { AIPanel } from './ui/ai'
 import { FileBrowser } from './ui/browser'
 import { openSettings, openShortcuts, themePalette } from './ui/settings'
 import { openQuickCommandManager } from './ui/quickcmd'
+import { PreviewSearch } from './ui/preview-search'
 import { remoteRootPath } from './ui/sidebar'
 import { ctx } from './lib/ctx'
 
@@ -80,11 +81,14 @@ let previewText = ''
 function updatePreview(force = false): void {
   const doc = S.activeDoc()
   if (!doc) {
+    previewSearch?.close()
     if (previewDocId) { clear(ui.previewHost); previewDocId = ''; previewText = '' }
     return
   }
+  if (doc.view !== 'preview' || !['md', 'csv', 'json'].includes(doc.kind)) previewSearch?.close()
   const show = doc.view !== 'edit' || !doc.editable
   if (!show) {
+    previewSearch?.close()
     if (previewDocId) { clear(ui.previewHost); previewDocId = ''; previewText = '' }
     return
   }
@@ -102,18 +106,21 @@ function updatePreview(force = false): void {
       previewText = ''
       renderPreview(ui.previewHost, doc)
       previewText = doc.text
+      previewSearch?.refresh()
     })
     box.append(btn)
     ui.previewHost.append(box)
     return
   }
   renderPreview(ui.previewHost, doc)
+  previewSearch?.refresh()
 }
 let cursor = { line: 1, col: 1, selChars: 0, selLines: 0, lines: 1 }
 let lockedRoot: string | null = null
 let samplesPath = ''
 let aiPanel: AIPanel
 let browser: FileBrowser
+let previewSearch: PreviewSearch
 const terminals = new Map<string, TermSession>()
 const ptyCaptures = new Map<string, string>()
 let termHost: HTMLElement
@@ -184,6 +191,7 @@ function buildShell(): void {
   ui.editorPane = el('div', { class: 'pane editor-pane' }, ui.editorHost)
   ui.previewPane = el('div', { class: 'pane preview-pane' }, ui.previewHost)
   ui.emptyHost = el('div', { class: 'pane', style: { flex: '1', minHeight: '0' } })
+  previewSearch = new PreviewSearch(ui.previewPane)
   ui.lockHost = el('div', { class: 'lock', style: { flex: '1', display: 'none' } })
 
   const panes = el('div', { class: 'panes' }, ui.emptyHost, ui.editorPane, ui.previewPane, ui.lockHost)
@@ -802,6 +810,10 @@ function installKeys(): void {
         return
       }
       if (d?.editable) {
+        if (d.view === 'preview' && (d.kind === 'md' || d.kind === 'csv' || d.kind === 'json')) {
+          previewSearch.open(ui.previewHost)
+          return
+        }
         if (d.view === 'preview') S.setView(d, 'split')
         setTimeout(() => editor.openSearch(), 30)
       } else {

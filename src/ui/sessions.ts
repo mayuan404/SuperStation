@@ -8,7 +8,7 @@ import { remoteRootPath } from './sidebar'
 import { TermSession, type TermProfile } from './terminal'
 import { RemotePanel } from './remote'
 import { ctx } from '../lib/ctx'
-import { dirname } from '../lib/files'
+import { basename, dirname } from '../lib/files'
 
 const copyText = (text: string, msg = '已拷贝') => invoke('ui.copy', { text }).then(() => toast(msg))
 
@@ -237,8 +237,10 @@ export function openRemote(profile: TermProfile): void {
 
 export function openTerminal(profile: TermProfile): void {
   const detail = profile.kind === 'ssh' ? (profile.host || 'SSH') : '本地'
-  const doc = S.createTerminalDoc(profile.name, detail, profile.color)
-  const session = new TermSession(doc.id, profile, {
+  const p: TermProfile = { ...profile }
+  if (p.kind === 'local' && !p.cwd) p.cwd = S.state.settings.localCwd?.trim() || undefined
+  const doc = S.createTerminalDoc(p.name, detail, p.color)
+  const session = new TermSession(doc.id, p, {
     onBrowseRemote: (p) => openRemote(p),
     onExit: (ptyId, code) => {
       const s = [...ctx.terminals.values()].find((t) => t.ptyId === ptyId)
@@ -258,10 +260,18 @@ export function openTerminalMenuAtCenter(): void {
 
 export function terminalMenu(x: number, y: number): void {
   const sessions = S.state.settings.sessions ?? []
+  const localDir = S.state.settings.localCwd?.trim() || ''
+  const localSub = localDir ? basename(localDir) : '~'
   const items: any[] = [
-    { label: '本地终端（zsh）', icon: 'terminal', onClick: () => openTerminal({ id: 'local', name: '终端', kind: 'local' }) },
-    { sep: true }
+    { label: '本地终端（zsh）', icon: 'terminal', sub: localSub, onClick: () => openTerminal({ id: 'local', name: '终端', kind: 'local' }) }
   ]
+  const active = S.activeDoc()
+  const activeDir = active?.path && !active.path.startsWith('ssh://') ? dirname(active.path) : ''
+  if (activeDir && activeDir !== localDir) {
+    items.push({ label: '本地终端（当前文件目录）', icon: 'terminal', sub: basename(activeDir),
+      onClick: () => openTerminal({ id: 'local', name: '终端', kind: 'local', cwd: activeDir }) })
+  }
+  items.push({ sep: true })
   const groups = new Map<string, typeof sessions>()
   for (const s of sessions) {
     const g = s.group?.trim() || '未分组'
@@ -377,10 +387,11 @@ export function manageSessions(): void {
     for (const s of list) {
       const dot = el('span', { class: 'term-dot' })
       if (s.color) dot.style.background = s.color
-      const row = el('div', { class: 'sheet-row' },
+      const meta = `${s.user || 'root'}@${s.host}:${s.port || 22}${s.remotePath ? '  ·  ' + s.remotePath : ''}`
+      const main = el('div', { class: 'sess-main' },
         el('div', { class: 'lbl' }, `${s.name}${s.group ? '  ·  ' + s.group : ''}`),
-        el('div', { class: 'hint' }, `${s.user || 'root'}@${s.host}:${s.port || 22}${s.remotePath ? '  ·  ' + s.remotePath : ''}`))
-      row.prepend(dot)
+        el('div', { class: 'hint', title: meta }, meta))
+      const row = el('div', { class: 'sheet-row sess-row' }, dot, main)
       const connect = el('button', { class: 'ghost' }, '连接')
       connect.addEventListener('click', () => { close(); openTerminal(s) })
       const edit = el('button', { class: 'ghost' }, '编辑')
@@ -391,7 +402,7 @@ export function manageSessions(): void {
         S.saveSettings()
         row.remove()
       })
-      row.append(el('div', { class: 'sheet-actions inline' }, connect, edit, del))
+      row.append(el('div', { class: 'sheet-actions inline sess-actions' }, connect, edit, del))
       body.append(row)
     }
     const done = el('button', { class: 'primary' }, '完成')

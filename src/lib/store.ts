@@ -44,6 +44,8 @@ export interface Settings {
   sidebarWidth: number
   sidebarVisible: boolean
   showHidden: boolean
+  /** 本地终端默认启动目录；留空 = 用户主目录 */
+  localCwd?: string
   roots: string[]
   remoteRoots: RemoteRoot[]
   expanded: string[]
@@ -253,7 +255,7 @@ export function openBrowserTab(): Doc {
   const doc: Doc = {
     id: BROWSER_TAB_ID,
     path: '',
-    name: '文件',
+    name: 'Finder',
     ext: '',
     kind: 'browser',
     editable: false,

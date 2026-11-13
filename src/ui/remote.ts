@@ -22,7 +22,8 @@ export class RemotePanel {
   private status: HTMLElement
   private entries: REntry[] = []
   path = '.'
-  private loading = false
+  private req = 0
+  private cache = new Map<string, { entries: REntry[]; at: number }>()
   private selected: string | null = null
   private selectedEntry: REntry | null = null
 
@@ -44,7 +45,7 @@ export class RemotePanel {
     const bar = el('div', { class: 'browser-bar' },
       up,
       this.pathBar,
-      mk('refresh', '刷新', () => this.load(this.path)),
+      mk('refresh', '刷新', () => this.load(this.path, true)),
       mk('close', '关闭', () => (this.deps as any).onClose?.())
     )
     const dlBtn = el('button', { class: 'term-file-btn', title: '把选中的文件下载到本机（会先选保存位置）' }, '下载')
@@ -70,28 +71,55 @@ export class RemotePanel {
              mockLocal: this.profile.host === 'mock' }
   }
 
-  async load(path: string): Promise<void> {
-    if (this.loading) return
-    this.loading = true
+  async load(path: string, force = false): Promise<void> {
+    const cached = this.cache.get(path)
+    if (cached && !force) {
+      // 回退/前进先用缓存立即渲染，再在后台刷新
+      this.path = path
+      this.pathBar.value = path
+      this.entries = cached.entries
+      this.selected = null
+      this.selectedEntry = null
+      this.render()
+      if (Date.now() - cached.at > 15_000) this.fetch(path, true)
+      return
+    }
     this.pathBar.value = path
     this.list.innerHTML = '<div class="browser-empty">读取中…</div>'
+    this.status.textContent = '读取中…'
+    await this.fetch(path, false)
+  }
+
+  private async fetch(path: string, background: boolean): Promise<void> {
+    const token = ++this.req
+    if (background) this.status.textContent = '刷新中…'
     try {
-      const t0 = Date.now()
       const res = await invoke<any>('remote.list', { ...this.target(), path })
+      if (token !== this.req) return
       if (res?.error) {
-        this.list.innerHTML = ''
-        this.list.append(el('div', { class: 'browser-empty' }, String(res.error).slice(0, 300)))
-        this.status.textContent = '读取失败'
+        if (!background) {
+          this.list.innerHTML = ''
+          this.list.append(el('div', { class: 'browser-empty' }, String(res.error).slice(0, 300)))
+          this.status.textContent = '读取失败'
+        } else {
+          this.status.textContent = `${this.entries.length} 项 · ${this.profile.user}@${this.profile.host}`
+        }
         return
       }
-      this.entries = res?.entries ?? []
+      const entries = (res?.entries ?? []) as REntry[]
+      this.entries = entries
       this.path = path
+      this.cache.set(path, { entries, at: Date.now() })
       this.render()
     } catch (err: any) {
-      this.list.innerHTML = ''
-      this.list.append(el('div', { class: 'browser-empty' }, String(err?.message ?? err)))
-    } finally {
-      this.loading = false
+      if (token !== this.req) return
+      if (!background) {
+        this.list.innerHTML = ''
+        this.list.append(el('div', { class: 'browser-empty' }, String(err?.message ?? err)))
+        this.status.textContent = '读取失败'
+      } else {
+        this.status.textContent = `${this.entries.length} 项 · ${this.profile.user}@${this.profile.host}`
+      }
     }
   }
 
@@ -146,7 +174,9 @@ export class RemotePanel {
       if (res?.error) this.deps.toast(`${name}: ${String(res.error).slice(0, 60)}`, 4000)
     }
     this.deps.toast(`已上传 ${files.length} 个文件`)
-    await this.load(this.path)
+    this.cache.delete(dir.replace(/\/$/, '') || '.')
+    this.cache.delete(this.path)
+    await this.load(this.path, true)
   }
 
   private async downloadTo(name: string): Promise<void> {
@@ -163,18 +193,21 @@ export class RemotePanel {
     const name = await this.deps.prompt({ title: '新建文件夹', label: '名称' })
     if (!name) return
     await invoke('remote.mkdir', { ...this.target(), path: this.join(name) }).catch(() => {})
-    await this.load(this.path)
+    this.cache.delete(this.path)
+    await this.load(this.path, true)
   }
 
   private async rename(name: string): Promise<void> {
     const next = await this.deps.prompt({ title: '重命名', label: '新名称', value: name })
     if (!next || next === name) return
     await invoke('remote.rename', { ...this.target(), from: this.join(name), to: this.join(next) }).catch(() => {})
-    await this.load(this.path)
+    this.cache.delete(this.path)
+    await this.load(this.path, true)
   }
 
   private async remove(name: string): Promise<void> {
     await invoke('remote.remove', { ...this.target(), path: this.join(name) }).catch(() => {})
-    await this.load(this.path)
+    this.cache.delete(this.path)
+    await this.load(this.path, true)
   }
 }

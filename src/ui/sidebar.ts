@@ -143,7 +143,11 @@ export class Sidebar {
     const quick = el('button', { title: '快速命令（全局，SSH 会话里一键发送）' })
     quick.append(icon('command'))
     quick.addEventListener('click', () => this.actions?.openQuickCommands())
-    head.append(term, quick)
+    // FinderIsShit 风格的文件管理入口：复用内建双栏文件浏览器
+    const finder = el('button', { title: 'Finder / 文件管理（双栏、剪切、批量重命名）' })
+    finder.append(icon('folder'))
+    finder.addEventListener('click', () => this.actions?.openBrowser())
+    head.append(term, quick, finder)
     return head
   }
 

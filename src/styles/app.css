@@ -369,7 +369,7 @@ body {
 .panes { flex: 1; display: flex; min-height: 0; position: relative; }
 .pane { min-width: 0; display: flex; flex-direction: column; position: relative; }
 .pane.editor-pane { flex: 1; }
-.pane.preview-pane { flex: 1; border-left: 1px solid var(--line); background: var(--bg); }
+.pane.preview-pane { position: relative; flex: 1; border-left: 1px solid var(--line); background: var(--bg); }
 .pane.hidden { display: none; }
 
 .editor-host { flex: 1; min-height: 0; overflow: hidden; position: relative; }
@@ -1211,3 +1211,70 @@ button:disabled,
 [data-theme="light"] .side-tab.active {
   box-shadow: 0 1px 2px rgba(0,0,0,.06), 0 0 0 .5px rgba(0,0,0,.10);
 }
+
+
+/* ---------- preview search ---------- */
+.preview-search {
+  position: absolute; top: 8px; right: 16px; z-index: 40;
+  display: none; align-items: center; gap: 3px;
+  height: 30px; padding: 0 4px 0 8px;
+  border-radius: 7px; background: var(--elev); border: 1px solid var(--line);
+  box-shadow: 0 4px 16px rgba(0,0,0,.14);
+}
+.preview-search.open { display: flex; }
+.preview-search > svg { width: 13px; height: 13px; color: var(--fg-3); flex: 0 0 auto; }
+.preview-search .ps-input {
+  width: 156px; height: 24px; border: 0; outline: none; background: transparent;
+  color: var(--fg); font: inherit; font-size: 12.5px; padding: 0 4px;
+}
+.preview-search .ps-input::placeholder { color: var(--fg-3); }
+.preview-search .ps-count {
+  min-width: 38px; text-align: right; font-size: 10.5px; color: var(--fg-3);
+  font-variant-numeric: tabular-nums;
+}
+.preview-search .ps-btn {
+  width: 22px; height: 22px; border: 0; border-radius: 5px; padding: 0;
+  background: transparent; color: var(--fg-3); display: grid; place-items: center;
+}
+.preview-search .ps-btn:hover:not(:disabled) { background: var(--panel-2); color: var(--fg); }
+.preview-search .ps-btn:disabled { opacity: .35; }
+.preview-search .ps-btn svg { width: 13px; height: 13px; }
+.preview-hit {
+  background: var(--search-hit-bg); color: var(--search-hit-fg);
+  border-radius: 2px; padding: 0 1px;
+}
+.preview-hit.active {
+  background: var(--search-hit-active-bg); color: var(--search-hit-active-fg);
+  outline: 1px solid var(--search-hit-active-border);
+}
+
+
+/* ---------- SSH 会话管理：元信息可截断，操作按钮不换行 ---------- */
+.sheet-row.sess-row { gap: 10px; }
+.sess-main { flex: 1; min-width: 0; }
+.sess-main .lbl { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sess-main .hint { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sheet-actions.inline.sess-actions { flex: 0 0 auto; align-items: center; }
+.sheet-actions.inline.sess-actions button {
+  flex: 0 0 auto; min-width: 54px; white-space: nowrap; padding: 0 12px;
+}
+
+/* ---------- Finder 侧栏（对齐 FinderIsShit 的位置栏） ---------- */
+.finder-body { flex: 1; display: flex; min-height: 0; }
+.finder-side {
+  width: 186px; flex: 0 0 auto; overflow: auto;
+  padding: 6px; background: var(--panel);
+  border-right: 1px solid var(--line);
+}
+.finder-side-title {
+  padding: 10px 8px 4px; font-size: 10.5px; font-weight: 600;
+  letter-spacing: .04em; text-transform: uppercase; color: var(--fg-3);
+}
+.finder-quick {
+  display: flex; align-items: center; gap: 7px; cursor: pointer;
+  height: 28px; padding: 0 8px; border-radius: 6px;
+  color: var(--fg-2); font-size: 12.5px; white-space: nowrap;
+}
+.finder-quick:hover { background: var(--panel-2); color: var(--fg); }
+.finder-quick svg { width: 14px; height: 14px; flex: 0 0 auto; color: var(--accent); }
+.finder-quick-name { overflow: hidden; text-overflow: ellipsis; }

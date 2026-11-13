@@ -271,6 +271,26 @@ class BrowserPane {
   private onKey(ev: KeyboardEvent): void {
     const list = this.visibleEntries()
     const cur = list.findIndex((e) => this.sel.has(e.path))
+    if (ev.metaKey || ev.ctrlKey) {
+      const k = ev.key.toLowerCase()
+      const take = (fn: () => void) => { ev.preventDefault(); ev.stopPropagation(); fn() }
+      if (k === '[') return take(() => this.go(-1))
+      if (k === ']') return take(() => this.go(1))
+      if (k === 'arrowup') return take(() => this.navigate(dirname(this.path || '/'), true))
+      if (k === 'l') return take(() => { this.pathBar.focus(); this.pathBar.select() })
+      if (k === 'r') return take(() => { void this.reload() })
+      if (k === 'c' && this.selectedEntries().length) return take(() => this.toClipboard('copy'))
+      if (k === 'x' && this.selectedEntries().length) return take(() => this.toClipboard('move'))
+      if (k === 'v') return take(() => { void this.pasteHere({ isDir: true, path: this.path } as BEntry) })
+      if (k === 'backspace') return take(() => { void this.trashSelection() })
+      if (k === 'n' && ev.shiftKey) return take(() => { void this.deps.newFolder(this.path).then(() => this.reload()) })
+      if (k === 'a') {
+        ev.preventDefault()
+        this.sel = new Set(list.map((e) => e.path))
+        this.render()
+        return
+      }
+    }
     if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
       ev.preventDefault()
       const i = ev.key === 'ArrowDown' ? Math.min(list.length - 1, cur + 1) : Math.max(0, cur - 1)
@@ -399,6 +419,9 @@ export class FileBrowser {
   private host: HTMLElement
   private panes: BrowserPane[] = []
   private active: BrowserPane | null = null
+  private side: HTMLElement
+  private quickBuilt = false
+  private lastFocusRefresh = 0
 
   constructor(deps: BrowserDeps) {
     this.deps = deps
@@ -417,8 +440,57 @@ export class FileBrowser {
     const bar = el('div', { class: 'browser-head' },
       el('div', { class: 'browser-seg' }, segSingle, segDual),
       el('div', { class: 'spacer' }), closeBtn)
-    this.el = el('div', { class: 'browser' }, bar, this.host)
+    this.side = el('div', { class: 'finder-side' })
+    this.el = el('div', { class: 'browser' }, bar, el('div', { class: 'finder-body' }, this.side, this.host))
+    this.buildQuick()
     this.addPane()
+    window.addEventListener('focus', () => {
+      if (!this.visible()) return
+      const now = Date.now()
+      if (now - this.lastFocusRefresh < 1500) return
+      this.lastFocusRefresh = now
+      void this.refreshAll()
+    })
+  }
+
+  /** FinderIsShit 风格的位置侧栏：常用目录 / 磁盘 */
+  private async buildQuick(): Promise<void> {
+    if (this.quickBuilt) return
+    this.quickBuilt = true
+    let home = ''
+    try { home = (await invoke<{ home: string }>('app.info')).home || '' } catch {}
+    if (!home) return
+    const groups: Array<[string, Array<[string, string]>]> = [
+      ['个人', [
+        ['个人目录', home],
+        ['桌面', `${home}/Desktop`],
+        ['文稿', `${home}/Documents`],
+        ['下载', `${home}/Downloads`],
+        ['图片', `${home}/Pictures`],
+        ['工作目录', `${home}/up`]
+      ]],
+      ['位置', [
+        ['整个磁盘', '/'],
+        ['应用程序', '/Applications'],
+        ['用户', '/Users']
+      ]]
+    ]
+    for (const [title, items] of groups) {
+      const rows: HTMLElement[] = []
+      for (const [name, path] of items) {
+        const ok = await invoke('fs.exists', { path }).catch(() => false)
+        if (!ok) continue
+        const row = el('div', { class: 'finder-quick', title: path },
+          icon('folder'), el('span', { class: 'finder-quick-name' }, name))
+        row.addEventListener('click', () => {
+          const p = this.active ?? this.panes[0]
+          if (p) p.navigate(path, true)
+        })
+        rows.push(row)
+      }
+      if (!rows.length) continue
+      this.side.append(el('div', { class: 'finder-side-title' }, title), ...rows)
+    }
   }
 
   private addPane(path?: string): BrowserPane {
