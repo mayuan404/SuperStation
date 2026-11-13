@@ -91,6 +91,7 @@ export class TermSession {
   private statusEl!: HTMLElement
   private body!: HTMLElement
   private quickBtn: HTMLButtonElement | null = null
+  private retryBtn: HTMLButtonElement | null = null
   private live = false
 
   constructor(docId: string, profile: TermProfile, deps: TermDeps) {
@@ -171,6 +172,11 @@ export class TermSession {
       const filesBtn = el('button', { class: 'term-file-btn', title: '浏览这台机器的文件' }, '文件')
       filesBtn.addEventListener('click', () => deps.onBrowseRemote?.(profile))
       head.append(filesBtn)
+      const retry = el('button', { class: 'term-file-btn', title: '重新连接这个 SSH 会话' }, '重连') as HTMLButtonElement
+      retry.hidden = true
+      retry.addEventListener('click', () => { retry.hidden = true; this.restart(true).catch(() => {}) })
+      this.retryBtn = retry
+      head.append(retry)
     }
     // 终端内搜索
     this.searchInput = el('input', { class: 'term-search-input', placeholder: '在终端里搜索…', spellcheck: 'false' }) as HTMLInputElement
@@ -236,6 +242,7 @@ export class TermSession {
     this.connected = false
     this.probe = ''
     this.setLive(false)
+    if (this.retryBtn) this.retryBtn.hidden = true
     this.statusEl.textContent = '等待密码输入'
     this.statusEl.classList.remove('pending', 'ok', 'bad')
     await this.start(useSecret)
@@ -350,6 +357,17 @@ export class TermSession {
     this.statusEl.textContent = code === 0 ? '已结束' : `已断开 (${code})`
     this.statusEl.classList.remove('pending', 'ok')
     this.statusEl.classList.add('bad')
+  }
+
+  /** SSH 连接失败：保留会话并显示重连，不再悄悄变成本地终端。 */
+  markConnectionFailed(code: number): void {
+    this.connected = false
+    this.setLive(false)
+    this.statusEl.textContent = '连接失败'
+    this.statusEl.classList.remove('pending', 'ok')
+    this.statusEl.classList.add('bad')
+    if (this.retryBtn) this.retryBtn.hidden = false
+    this.term.write(`\r\n\x1b[31m[SSH 连接失败，退出码 ${code}。检查网络/VPN 后点「重连」]\x1b[0m\r\n`)
   }
 
   refit(): void {

@@ -1800,22 +1800,28 @@ async function boot(): Promise<void> {
     if (!s) return
     const code = Number(payload?.code ?? 0)
     s.markExited(code)
-    // 保存的密码被拒（ssh 退出码 255）时，自动改成手动输入
-    if (code === 255 && s.usedSecret && !s.retried) {
-      toast('保存的密码不可用，请手动输入')
-      s.restart(false).catch(() => {})
+    invoke('app.log', {
+      line: `PTY EXIT kind=${s.profile.kind} name=${s.profile.name} code=${code} usedSecret=${s.usedSecret} retried=${s.retried}`
+    }).catch(() => {})
+
+    // SSH 失败时绝不能静默变成本地终端：保留标签并给出重连
+    if (s.profile.kind === 'ssh') {
+      if (code === 255 && s.usedSecret && !s.retried) {
+        toast('保存的密码不可用，请手动输入')
+        s.restart(false).catch(() => {})
+        return
+      }
+      s.markConnectionFailed(code)
+      toast(`SSH 连接失败：${s.profile.user || 'root'}@${s.profile.host}:${s.profile.port || 22}（退出码 ${code}），检查网络/VPN 后点「重连」`, 6000)
       return
     }
-    // 第一次退出：回落到本地终端；再退出一次：关掉这个标签
-    if (!s.restarted) {
-      s.fallbackToLocal().catch(() => {})
+
+    // 本地终端退出后关闭标签（SSH 不再走这个分支）
+    const doc = S.state.docs.find((d) => d.id === s.docId)
+    if (doc && doc.locked) {
+      s.write(new TextEncoder().encode('\r\n\x1b[2m[标签已锁定，未被关闭]\x1b[0m\r\n'))
     } else {
-      const doc = S.state.docs.find((d) => d.id === s.docId)
-      if (doc && doc.locked) {
-        s.write(new TextEncoder().encode('\r\n\x1b[2m[标签已锁定，未被关闭]\x1b[0m\r\n'))
-      } else {
-        void S.closeDoc(s.docId)
-      }
+      void S.closeDoc(s.docId)
     }
   })
 
