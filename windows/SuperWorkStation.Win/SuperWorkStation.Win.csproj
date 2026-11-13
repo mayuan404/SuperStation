@@ -28,6 +28,8 @@
   <ItemGroup>
     <Content Include="..\..\dist\**\*" Link="web\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\samples\**\*" Link="samples\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\QUICKSTART.txt" Link="QUICKSTART.txt" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\scripts\*.ps1" Link="scripts\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
