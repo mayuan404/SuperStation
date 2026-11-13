@@ -45,6 +45,9 @@ class BrowserPane {
   private list: HTMLElement
   private status: HTMLElement
   private sortBtn: HTMLElement
+  private btnBack!: HTMLButtonElement
+  private btnFwd!: HTMLButtonElement
+  private btnUp!: HTMLButtonElement
   private active = false
 
   path = ''
@@ -73,13 +76,14 @@ class BrowserPane {
       b.addEventListener('click', (ev) => { ev.stopPropagation(); fn() })
       return b
     }
-    const btnBack = mk('chevron', '后退', () => this.go(-1))
+    const btnBack = mk('chevron', '后退（历史）', () => this.go(-1)) as HTMLButtonElement
     btnBack.style.transform = 'rotate(180deg)'
-    const btnFwd = mk('chevron', '前进', () => this.go(1))
-    btnFwd.style.transform = 'rotate(180deg)'
-    btnFwd.style.transform = 'rotate(180deg)'
-    const btnUp = mk('arrow-left', '上一级', () => this.navigate(dirname(this.path || '/'), true))
+    const btnFwd = mk('chevron', '前进（历史）', () => this.go(1)) as HTMLButtonElement
+    const btnUp = mk('arrow-left', '上一级目录', () => this.navigate(dirname(this.path || '/'), true)) as HTMLButtonElement
     btnUp.style.transform = 'rotate(90deg)'
+    this.btnBack = btnBack
+    this.btnFwd = btnFwd
+    this.btnUp = btnUp
     this.sortBtn = mk('refresh', '切换排序', () => this.cycleSort())
 
     const bar = el('div', { class: 'browser-bar' },
@@ -101,6 +105,7 @@ class BrowserPane {
     const tools = el('div', { class: 'browser-tools' }, this.filterInput, this.sortBtn, hiddenBtn)
 
     this.el = el('div', { class: 'browser-pane' }, bar, tools, this.list, this.status)
+    this.syncNav()
 
     this.el.addEventListener('mousedown', () => this.onActivate())
     this.pathBar.addEventListener('keydown', (ev) => {
@@ -128,6 +133,15 @@ class BrowserPane {
       ev.stopPropagation()
       await this.dropInto(paths, this.path, ev.altKey)
     })
+  }
+
+  /** 后退/前进看历史栈，上一级看目录父级；没有可用动作时置灰，避免三个箭头看起来一样。 */
+  private syncNav(): void {
+    if (!this.btnBack) return
+    this.btnBack.disabled = this.histIndex <= 0
+    this.btnFwd.disabled = this.histIndex < 0 || this.histIndex >= this.history.length - 1
+    const p = this.path
+    this.btnUp.disabled = !p || p === '/' || p === '.'
   }
 
   private dropPaths(ev: DragEvent): string[] {
@@ -189,10 +203,12 @@ class BrowserPane {
       this.anchor = -1
       try { localStorage.setItem('bnb.browser.path', path) } catch {}
       this.render()
+      this.syncNav()
     } catch (err: any) {
       this.entries = []
       this.path = path
       this.render(String(err?.message ?? '无法读取目录'))
+      this.syncNav()
     }
   }
 

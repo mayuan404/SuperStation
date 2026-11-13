@@ -1291,3 +1291,6 @@ button:disabled,
   outline-offset: -2px;
 }
 .browser-list.drop-hover { outline: 2px dashed var(--accent); outline-offset: -4px; }
+
+.browser-btn:disabled { opacity: .3; }
+.browser-btn:disabled:hover { background: transparent; color: var(--fg-2); }
