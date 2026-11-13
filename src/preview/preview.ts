@@ -17,6 +17,7 @@ import yaml from 'highlight.js/lib/languages/yaml'
 import markdown from 'highlight.js/lib/languages/markdown'
 import ini from 'highlight.js/lib/languages/ini'
 import { fileURL, invoke } from '../lib/bridge'
+import { isWindows } from '../lib/platform'
 import { dirname, humanSize } from '../lib/files'
 import { el, escapeHTML } from '../lib/dom'
 import { icon } from '../lib/icons'
@@ -540,7 +541,7 @@ function renderOffice(doc: Doc): HTMLElement {
   const img = el('img', { class: 'office-thumb', alt: doc.name })
   img.style.display = 'none'
   const hint = el('div', { class: 'office-hint' }, '正在生成预览…')
-  const btn = el('button', { class: 'primary' }, '在「快速查看」中打开')
+  const btn = el('button', { class: 'primary' }, isWindows() ? '用默认应用打开' : '在「快速查看」中打开')
   btn.addEventListener('click', () => invoke('office.quickLook', { path: doc.path }).catch(() => {}))
   wrap.append(img, hint, btn)
 
