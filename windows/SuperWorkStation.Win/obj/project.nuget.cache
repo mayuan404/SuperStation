@@ -1,0 +1,17 @@
+{
+  "version": 2,
+  "dgSpecHash": "9BHuokQxmRU=",
+  "success": true,
+  "projectFilePath": "/Users/songwei/up/code/repos/SuperStation/windows/SuperWorkStation.Win/SuperWorkStation.Win.csproj",
+  "expectedPackageFiles": [
+    "/Users/songwei/.nuget/packages/bouncycastle.cryptography/2.7.0/bouncycastle.cryptography.2.7.0.nupkg.sha512",
+    "/Users/songwei/.nuget/packages/microsoft.extensions.dependencyinjection.abstractions/8.0.2/microsoft.extensions.dependencyinjection.abstractions.8.0.2.nupkg.sha512",
+    "/Users/songwei/.nuget/packages/microsoft.extensions.logging.abstractions/8.0.3/microsoft.extensions.logging.abstractions.8.0.3.nupkg.sha512",
+    "/Users/songwei/.nuget/packages/microsoft.web.webview2/1.0.2903.40/microsoft.web.webview2.1.0.2903.40.nupkg.sha512",
+    "/Users/songwei/.nuget/packages/ssh.net/2026.0.0/ssh.net.2026.0.0.nupkg.sha512",
+    "/Users/songwei/.nuget/packages/system.security.cryptography.protecteddata/8.0.0/system.security.cryptography.protecteddata.8.0.0.nupkg.sha512",
+    "/Users/songwei/.nuget/packages/microsoft.windowsdesktop.app.ref/8.0.34/microsoft.windowsdesktop.app.ref.8.0.34.nupkg.sha512",
+    "/Users/songwei/.nuget/packages/microsoft.windows.sdk.net.ref/10.0.19041.56/microsoft.windows.sdk.net.ref.10.0.19041.56.nupkg.sha512"
+  ],
+  "logs": []
+}

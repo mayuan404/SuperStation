@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text;
 using Renci.SshNet;
 
@@ -79,11 +80,24 @@ internal sealed class SshShell : IPtySession
         }
     }
 
+    // SSH.NET 2024 没有公开 ShellStream 的 resize API，只能拿到内部 channel 发 window-change
+    private static readonly FieldInfo? ChannelField =
+        typeof(ShellStream).GetField("_channel", BindingFlags.NonPublic | BindingFlags.Instance);
+
     public void Resize(int cols, int rows)
     {
         if (_closed) return;
-        try { _stream.ChangeWindowSize((uint)Math.Max(20, cols), (uint)Math.Max(4, rows), 0, 0); }
-        catch { }
+        try
+        {
+            var channel = ChannelField?.GetValue(_stream);
+            var send = channel?.GetType().GetMethod("SendWindowChangeRequest",
+                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+            send?.Invoke(channel, [(uint)Math.Max(20, cols), (uint)Math.Max(4, rows), 0u, 0u]);
+        }
+        catch
+        {
+            // 远端拒绝 resize 时保持原尺寸，不影响继续使用
+        }
     }
 
     public void Dispose()

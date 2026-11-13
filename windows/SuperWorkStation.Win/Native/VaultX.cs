@@ -207,7 +207,9 @@ internal static class VaultX
 
         var header = new byte[5 + 4 + 16];
         Buffer.BlockCopy(FileMagic, 0, header, 0, 5);
-        Buffer.BlockCopy(BitConverter.GetBytes(Iterations).Reverse().ToArray(), 0, header, 5, 4);
+        var iterationsBytes = BitConverter.GetBytes(Iterations);
+        Array.Reverse(iterationsBytes);
+        Buffer.BlockCopy(iterationsBytes, 0, header, 5, 4);
         Buffer.BlockCopy(salt, 0, header, 9, 16);
 
         var outPath = file + Suffix;

@@ -105,21 +105,20 @@ internal static class RemoteX
         }
     }
 
-    private static string ModeString(SftpFile file)
+    private static string ModeString(ISftpFile file)
     {
         var attrs = file.Attributes;
         var sb = new StringBuilder(10);
         sb.Append(attrs.IsDirectory ? 'd' : attrs.IsSymbolicLink ? 'l' : '-');
-        var perms = attrs.Permissions;
-        sb.Append((perms & 0x100) != 0 ? 'r' : '-');
-        sb.Append((perms & 0x080) != 0 ? 'w' : '-');
-        sb.Append((perms & 0x040) != 0 ? 'x' : '-');
-        sb.Append((perms & 0x020) != 0 ? 'r' : '-');
-        sb.Append((perms & 0x010) != 0 ? 'w' : '-');
-        sb.Append((perms & 0x008) != 0 ? 'x' : '-');
-        sb.Append((perms & 0x004) != 0 ? 'r' : '-');
-        sb.Append((perms & 0x002) != 0 ? 'w' : '-');
-        sb.Append((perms & 0x001) != 0 ? 'x' : '-');
+        sb.Append(attrs.OwnerCanRead ? 'r' : '-');
+        sb.Append(attrs.OwnerCanWrite ? 'w' : '-');
+        sb.Append(attrs.OwnerCanExecute ? 'x' : '-');
+        sb.Append(attrs.GroupCanRead ? 'r' : '-');
+        sb.Append(attrs.GroupCanWrite ? 'w' : '-');
+        sb.Append(attrs.GroupCanExecute ? 'x' : '-');
+        sb.Append(attrs.OthersCanRead ? 'r' : '-');
+        sb.Append(attrs.OthersCanWrite ? 'w' : '-');
+        sb.Append(attrs.OthersCanExecute ? 'x' : '-');
         return sb.ToString();
     }
 
