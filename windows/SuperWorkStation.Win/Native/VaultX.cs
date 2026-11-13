@@ -158,7 +158,7 @@ internal static class VaultX
         Unlock(jsPath, password);
         var key = KeyFor(jsPath) ?? throw new ApiException("解锁失败");
         var root = PathUtil.FromJs(jsPath);
-        foreach (var file in Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories))
+        foreach (var file in Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories).ToList())
         {
             if (!file.EndsWith(Suffix, StringComparison.OrdinalIgnoreCase)) continue;
             var plain = Open(File.ReadAllBytes(file), key);
@@ -173,7 +173,7 @@ internal static class VaultX
     private static void EncryptTree(string jsPath, byte[] key)
     {
         var root = PathUtil.FromJs(jsPath);
-        foreach (var file in Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories))
+        foreach (var file in Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories).ToList())
         {
             var name = Path.GetFileName(file);
             if (name is Marker || name.EndsWith(Suffix, StringComparison.OrdinalIgnoreCase)) continue;

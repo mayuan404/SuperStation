@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text;
 using Renci.SshNet;
+using Renci.SshNet.Sftp;
 
 namespace SuperWorkStation;
 

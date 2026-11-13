@@ -60,10 +60,11 @@ internal static class AiX
         var endpoint = Endpoint(p.Str("baseURL", "https://api.deepseek.com"));
         if (endpoint is null) return new Dictionary<string, object?> { ["error"] = "API 地址无效" };
 
+        var messages = p.El("messages");
         var body = new Dictionary<string, object?>
         {
             ["model"] = p.Str("model", "deepseek-chat"),
-            ["messages"] = p.El("messages"),
+            ["messages"] = messages.ValueKind == JsonValueKind.Array ? messages : Array.Empty<object>(),
             ["stream"] = true,
             ["temperature"] = p.Dbl("temperature", 0.7)
         };

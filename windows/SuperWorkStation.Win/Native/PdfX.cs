@@ -26,9 +26,9 @@ internal static class PdfX
             var doc = Load(native);
             var pages = new List<Dictionary<string, object?>>();
             var count = Math.Min((int)doc.PageCount, 2000);
-            for (uint i = 0; i < count; i++)
+            for (var i = 0; i < count; i++)
             {
-                using var page = doc.GetPage(i);
+                var page = doc.GetPage((uint)i);
                 pages.Add(new Dictionary<string, object?>
                 {
                     ["width"] = page.Size.Width,
@@ -62,7 +62,7 @@ internal static class PdfX
             var key = $"{PathUtil.StableHash(jsPath)}-{new DateTimeOffset(info.LastWriteTimeUtc).ToUnixTimeSeconds()}-{page}-{(int)w}";
             var outPath = Path.Combine(CacheDir, key + ".png");
 
-            using var target = doc.GetPage((uint)page);
+            var target = doc.GetPage((uint)page);
             var height = target.Size.Height * (w / target.Size.Width);
             if (!File.Exists(outPath))
             {
