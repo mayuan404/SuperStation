@@ -1,4 +1,5 @@
 import { invoke, onEvent, fileURL } from './lib/bridge'
+import { initPlatform, isWindows, primary, revealLabel } from './lib/platform'
 import { el, clear, debounce } from './lib/dom'
 import { icon } from './lib/icons'
 import { basename, detectKind, dirname, extname, humanSize, isEditable, joinPath } from './lib/files'
@@ -157,6 +158,17 @@ function buildShell(): void {
     aiBtn,
     searchBtn
   )
+  if (isWindows()) {
+    const actions = el('div', { class: 'win-actions' })
+    const mkBtn = (label: string, glyph: string, action: string, danger = false) => {
+      const b = el('button', { class: `win-btn${danger ? ' danger' : ''}`, title: label })
+      b.append(el('span', {}, glyph))
+      b.addEventListener('click', () => invoke('ui.window', { action }).catch(() => {}))
+      return b
+    }
+    actions.append(mkBtn('最小化', '−', 'min'), mkBtn('最大化', '□', 'max'), mkBtn('关闭', '✕', 'close', true))
+    titlebar.append(actions)
+  }
   ui.titlebar = titlebar
 
   // 标题栏：单击拖动（移动超过 3px 才真正开始拖，避免吃掉双击），双击缩放
@@ -533,7 +545,7 @@ function tabMenu(id: string, ev: MouseEvent): void {
       onClick: () => copyText(doc.name, '已拷贝文件名')
     },
     ...(doc.path && !doc.path.startsWith('ssh://')
-      ? [{ label: '在 Finder 中显示', icon: 'external', onClick: () => invoke('ui.reveal', { path: doc.path! }) }]
+      ? [{ label: revealLabel(), icon: 'external', onClick: () => invoke('ui.reveal', { path: doc.path! }) }]
       : [])
   ])
 }
@@ -787,7 +799,7 @@ function installKeys(): void {
       cycleTab(ev.shiftKey ? -1 : 1)
       return
     }
-    if (!ev.metaKey || ev.ctrlKey) return
+    if (!primary(ev)) return
     const k = ev.key.toLowerCase()
     const stop = () => { ev.preventDefault(); ev.stopPropagation() }
 
@@ -1566,7 +1578,7 @@ function entryMenu(entry: Entry, ev: MouseEvent): void {
   items.push({ label: '剪切', icon: 'cut', sub: '⌘X', onClick: () => { clip = { mode: 'cut', path: entry.path }; toast(`已剪切 ${entry.displayName}`) } })
   if (clip) items.push({ label: '粘贴到此', icon: 'paste', sub: '⌘V', onClick: () => pasteInto(entry.isDir ? entry.path : dirname(entry.path)) })
   items.push({ sep: true })
-  if (!entry.path.startsWith('ssh://')) items.push({ label: '在 Finder 中显示', icon: 'external', onClick: () => invoke('ui.reveal', { path: entry.path }) })
+  if (!entry.path.startsWith('ssh://')) items.push({ label: revealLabel(), icon: 'external', onClick: () => invoke('ui.reveal', { path: entry.path }) })
   items.push(...pathMenuItems(entry.path))
   items.push({ sep: true })
   items.push({ label: '重命名…', icon: 'pencil', onClick: () => renameEntry(entry) })
@@ -1597,7 +1609,7 @@ function rootMenu(root: string, ev: MouseEvent): void {
     { label: '新建文件', icon: 'file-plus', onClick: () => newFile(root) },
     { label: '新建文件夹', icon: 'folder-plus', onClick: () => newFolder(root) },
     { sep: true },
-    ...(root.startsWith('ssh://') ? [] : [{ label: '在 Finder 中显示', icon: 'external', onClick: () => invoke('ui.reveal', { path: root }) }]),
+    ...(root.startsWith('ssh://') ? [] : [{ label: revealLabel(), icon: 'external', onClick: () => invoke('ui.reveal', { path: root }) }]),
     { label: '拷贝路径（绝对）', icon: 'file', onClick: () => copyText(displayPath(root), '已拷贝绝对路径') },
     { sep: true },
     { label: '加密此文件夹…', icon: 'lock', onClick: () => encryptFolder(root) },
@@ -1831,7 +1843,7 @@ async function boot(): Promise<void> {
     pointerInTree = !!(ev.target as HTMLElement)?.closest?.('.tree')
   }, true)
   window.addEventListener('keydown', (ev) => {
-    if (!ev.metaKey || ev.ctrlKey) return
+    if (!primary(ev)) return
     if (!pointerInTree) return
     const sel0 = window.getSelection()
     if (sel0 && !sel0.isCollapsed) return
@@ -1905,11 +1917,12 @@ async function boot(): Promise<void> {
   let initial = ''
   let initialFile = ''
   try {
-    const info = await invoke<{ initial: string; initialFile: string; samples: string; home: string }>('app.info')
+    const info = await invoke<{ initial: string; initialFile: string; samples: string; home: string; platform?: string; defaultShell?: string }>('app.info')
     initial = info.initial || ''
     initialFile = info.initialFile || ''
     samplesPath = info.samples || ''
     homeDir = info.home || ''
+    initPlatform({ platform: info.platform, home: info.home, defaultShell: info.defaultShell })
   } catch {}
 
   invoke<boolean>('ui.isFullscreen').then((fs) => {

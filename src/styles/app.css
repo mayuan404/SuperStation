@@ -1294,3 +1294,33 @@ button:disabled,
 
 .browser-btn:disabled { opacity: .3; }
 .browser-btn:disabled:hover { background: transparent; color: var(--fg-2); }
+
+/* ---------- Windows：无边框窗口自带按钮 ---------- */
+.platform-windows .titlebar { padding-left: 10px; }
+
+.win-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 6px;
+}
+
+.win-btn {
+  width: 34px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--fg-2);
+  border-radius: 6px;
+  font-family: "Segoe UI Symbol", "Segoe UI", sans-serif;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.win-btn:hover { background: rgba(127, 127, 127, 0.18); color: var(--fg); }
+.win-btn.danger:hover { background: #e81123; color: #fff; }

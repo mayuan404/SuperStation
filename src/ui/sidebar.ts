@@ -1,4 +1,5 @@
 import { invoke } from '../lib/bridge'
+import { multiSelect } from '../lib/platform'
 import { el, clear } from '../lib/dom'
 import type { RemoteRoot } from '../lib/store'
 import { fileIcon, icon, iconColor } from '../lib/icons'
@@ -693,7 +694,7 @@ export class Sidebar {
     row.addEventListener('click', (ev) => {
       if (Date.now() < this.suppressClickUntil) return
       row.focus({ preventScroll: true })
-      if (ev.metaKey) {
+      if (multiSelect(ev)) {
         const pane = row.closest('.tree-pane') as HTMLElement | null
         if (pane !== this.selPane) { this.multi.clear(); this.selPane = pane }
         if (this.multi.has(entry.path)) this.multi.delete(entry.path)

@@ -1,0 +1,69 @@
+name: windows
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [feat/windows, main]
+    paths:
+      - "src/**"
+      - "index.html"
+      - "package.json"
+      - "package-lock.json"
+      - "vite.config.ts"
+      - "samples/**"
+      - "windows/**"
+      - ".github/workflows/windows.yml"
+  pull_request:
+    paths:
+      - "windows/**"
+      - "src/**"
+      - ".github/workflows/windows.yml"
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install web deps
+        run: npm ci
+
+      - name: Build web assets
+        run: npx vite build
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Publish Windows app (win-x64, self-contained)
+        run: >
+          dotnet publish windows/SuperWorkStation.Win/SuperWorkStation.Win.csproj
+          -c Release -r win-x64 --self-contained true -p:PublishSingleFile=false
+          -o out/win-x64
+
+      - name: Sanity check bundle
+        shell: pwsh
+        run: |
+          $exe = "out/win-x64/SuperWorkStation.exe"
+          if (-not (Test-Path $exe)) { throw "missing $exe" }
+          if (-not (Test-Path "out/win-x64/web/index.html")) { throw "missing web assets" }
+          Get-ChildItem out/win-x64 | Select-Object Name, Length
+
+      - name: Package zip
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json | ConvertFrom-Json).version
+          $zip = "SuperWorkStation-$version-win-x64.zip"
+          Compress-Archive -Path out/win-x64/* -DestinationPath $zip -Force
+          Get-Item $zip | Select-Object Name, Length
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SuperWorkStation-win-x64
+          path: SuperWorkStation-*-win-x64.zip
+          if-no-files-found: error
