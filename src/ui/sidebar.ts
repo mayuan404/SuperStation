@@ -144,8 +144,8 @@ export class Sidebar {
     quick.append(icon('command'))
     quick.addEventListener('click', () => this.actions?.openQuickCommands())
     // FinderIsShit 风格的文件管理入口：复用内建双栏文件浏览器
-    const finder = el('button', { title: 'Finder / 文件管理（双栏、剪切、批量重命名）' })
-    finder.append(icon('folder'))
+    const finder = el('button', { title: '磁盘 / 文件管理（双栏、剪切、批量重命名）' })
+    finder.append(icon('disk'))
     finder.addEventListener('click', () => this.actions?.openBrowser())
     head.append(term, quick, finder)
     return head

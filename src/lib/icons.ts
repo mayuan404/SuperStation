@@ -2,6 +2,7 @@ const P: Record<string, string> = {
   chevron: '<path d="M6 3.5L10.5 8 6 12.5"/>',
   'chevron-down': '<path d="M3.5 6L8 10.5 12.5 6"/>',
   folder: '<path d="M2 5.2A1.2 1.2 0 0 1 3.2 4h3l1.5 2h5.1A1.2 1.2 0 0 1 14 7.2v5.6A1.2 1.2 0 0 1 12.8 14H3.2A1.2 1.2 0 0 1 2 12.8z"/>',
+  disk: '<rect x="2" y="3.3" width="12" height="9.4" rx="1.6"/><path d="M2.6 9.1h10.8"/><path d="M4.2 6.2h3.6"/><circle cx="11.7" cy="6.2" r=".65" fill="currentColor" stroke="none"/>',
   'folder-open': '<path d="M2 12.6V5.2A1.2 1.2 0 0 1 3.2 4h3l1.5 2h4.1A1.2 1.2 0 0 1 13 7.2v.8"/><path d="M2.6 13.4l1.7-5a1 1 0 0 1 1-.7h8.3a.7.7 0 0 1 .7.9l-1.6 4.8z"/>',
   file: '<path d="M4 2.2h5l3 3v8.6H4z"/><path d="M9 2.2v3h3"/>',
   lock: '<rect x="3.4" y="7" width="9.2" height="6.8" rx="1.6"/><path d="M5.6 7V5.1a2.4 2.4 0 0 1 4.8 0V7"/>',

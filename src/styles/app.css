@@ -1278,3 +1278,16 @@ button:disabled,
 .finder-quick:hover { background: var(--panel-2); color: var(--fg); }
 .finder-quick svg { width: 14px; height: 14px; flex: 0 0 auto; color: var(--accent); }
 .finder-quick-name { overflow: hidden; text-overflow: ellipsis; }
+
+/* ---------- 磁盘标题 / 拖拽反馈 ---------- */
+.browser-title {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 0 6px; font-size: 12.5px; font-weight: 600; color: var(--fg-2);
+}
+.browser-title svg { width: 14px; height: 14px; color: var(--accent); }
+.browser-row.drop-target {
+  background: var(--accent-soft);
+  outline: 1.5px solid var(--accent);
+  outline-offset: -2px;
+}
+.browser-list.drop-hover { outline: 2px dashed var(--accent); outline-offset: -4px; }

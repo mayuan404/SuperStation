@@ -894,7 +894,7 @@ function commandPalette(): void {
       run: () => openTerminal({ id: 'local', name: '终端', kind: 'local' }) },
     { id: 'school', label: '连接 SSH 会话…', icon: 'external', run: () => openTerminalMenuAtCenter() },
     { id: 'quick-commands', label: '快速命令…', icon: 'command', run: openQuickCommandManager },
-    { id: 'browse', label: '文件管理：打开 / 关闭', icon: 'folder-open', sub: '⌘⇧B',
+    { id: 'browse', label: '磁盘：打开 / 关闭', icon: 'disk', sub: '⌘⇧B',
       run: () => { if (S.activeDoc()?.kind === 'browser') closeBrowser(); else openBrowser() } },
     { id: 'cycle-view', label: '切换 编辑 / 对比 / 预览', icon: 'split', sub: '⌘E', run: cycleView },
     { id: 'toggle-sidebar', label: '显示 / 隐藏侧边栏', icon: 'sidebar', sub: '⌘B', run: toggleSidebar },

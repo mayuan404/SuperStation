@@ -31,6 +31,8 @@ export interface BrowserDeps {
   prompt: (opts: any) => Promise<string | null>
   confirm: (title: string, msg: string, danger?: boolean) => Promise<boolean>
   onClose: () => void
+  /** 本页所有栏一起刷新：双栏拖拽后源栏不能继续显示旧文件 */
+  refreshAll?: () => void | Promise<void>
 }
 
 const CLIP = { key: '__bnbBrowserClip' }
@@ -110,20 +112,46 @@ class BrowserPane {
     this.list.addEventListener('dragover', (ev) => {
       if (!ev.dataTransfer?.types.includes('application/x-bnb-path')) return
       ev.preventDefault()
+      if (ev.dataTransfer) ev.dataTransfer.dropEffect = ev.altKey ? 'copy' : 'move'
       this.list.classList.add('drop-hover')
     })
     this.list.addEventListener('dragleave', () => this.list.classList.remove('drop-hover'))
+    document.addEventListener('dragend', () => {
+      this.list.classList.remove('drop-hover')
+      for (const r of Array.from(this.list.querySelectorAll('.drop-target'))) r.classList.remove('drop-target')
+    })
     this.list.addEventListener('drop', async (ev) => {
       this.list.classList.remove('drop-hover')
-      const src = ev.dataTransfer?.getData('application/x-bnb-path')
-      if (!src) return
+      const paths = this.dropPaths(ev)
+      if (!paths.length) return
       ev.preventDefault()
       ev.stopPropagation()
-      if (this.path === dirname(src)) return
-      if (ev.altKey) await this.deps.copyTo(src, this.path)
-      else await this.deps.moveTo(src, this.path)
-      await this.reload()
+      await this.dropInto(paths, this.path, ev.altKey)
     })
+  }
+
+  private dropPaths(ev: DragEvent): string[] {
+    const raw = ev.dataTransfer?.getData('application/x-bnb-paths')
+    if (raw) {
+      try {
+        const arr = JSON.parse(raw)
+        if (Array.isArray(arr)) return arr.filter((x) => typeof x === 'string')
+      } catch {}
+    }
+    const one = ev.dataTransfer?.getData('application/x-bnb-path')
+    return one ? [one] : []
+  }
+
+  /** 双栏/同栏目录拖拽：默认移动，按住 ⌥ 复制。完成后两边都刷新。 */
+  private async dropInto(paths: string[], dir: string, copy: boolean): Promise<void> {
+    for (const src of paths) {
+      if (!src || src === dir) continue
+      if (dir === src || dir.startsWith(src + '/')) continue
+      if (copy) await this.deps.copyTo(src, dir)
+      else await this.deps.moveTo(src, dir)
+    }
+    if (this.deps.refreshAll) await this.deps.refreshAll()
+    else await this.reload()
   }
 
   setActive(v: boolean): void {
@@ -228,10 +256,40 @@ class BrowserPane {
         if (!this.sel.has(e.path)) { this.sel = new Set([e.path]); this.anchor = i; this.render() }
         this.menu(ev)
       })
+      if (e.isDir) {
+        row.addEventListener('dragover', (ev) => {
+          if (!ev.dataTransfer?.types.includes('application/x-bnb-path')) return
+          ev.preventDefault()
+          ev.stopPropagation()
+          if (ev.dataTransfer) ev.dataTransfer.dropEffect = ev.altKey ? 'copy' : 'move'
+          row.classList.add('drop-target')
+        })
+        row.addEventListener('dragleave', (ev) => {
+          if (ev.relatedTarget && row.contains(ev.relatedTarget as Node)) return
+          row.classList.remove('drop-target')
+        })
+        row.addEventListener('drop', async (ev) => {
+          ev.preventDefault()
+          ev.stopPropagation()
+          row.classList.remove('drop-target')
+          const paths = this.dropPaths(ev)
+          if (!paths.length) return
+          await this.dropInto(paths, e.path, ev.altKey)
+        })
+      }
       row.addEventListener('dragstart', (ev) => {
-        if (!this.sel.has(e.path)) { this.sel = new Set([e.path]); this.anchor = i; this.render() }
-        ev.dataTransfer?.setData('application/x-bnb-path', e.path)
-        ev.dataTransfer?.setData('text/plain', e.path)
+        // 不要在这里 render 整个列表：会销毁正在拖的节点，手感会明显变卡
+        if (!this.sel.has(e.path)) {
+          this.sel = new Set([e.path])
+          this.anchor = i
+          for (const r of Array.from(this.list.querySelectorAll<HTMLElement>('.browser-row'))) {
+            r.classList.toggle('selected', this.sel.has(r.dataset.path || ''))
+          }
+        }
+        const paths = this.sel.has(e.path) ? Array.from(this.sel) : [e.path]
+        ev.dataTransfer?.setData('application/x-bnb-path', paths[0] || e.path)
+        ev.dataTransfer?.setData('application/x-bnb-paths', JSON.stringify(paths))
+        ev.dataTransfer?.setData('text/plain', paths.join('\n'))
         if (ev.dataTransfer) ev.dataTransfer.effectAllowed = 'copyMove'
       })
       this.list.append(row)
@@ -424,7 +482,7 @@ export class FileBrowser {
   private lastFocusRefresh = 0
 
   constructor(deps: BrowserDeps) {
-    this.deps = deps
+    this.deps = { ...deps, refreshAll: () => this.refreshAll() }
     this.host = el('div', { class: 'browser-split' })
     const segSingle = el('button', { class: 'seg-btn active', title: '单栏  ⌘\\' })
     segSingle.append(icon('sidebar'), el('span', {}, '单栏'))
@@ -438,6 +496,7 @@ export class FileBrowser {
     closeBtn.append(icon('close'))
     closeBtn.addEventListener('click', () => deps.onClose())
     const bar = el('div', { class: 'browser-head' },
+      el('div', { class: 'browser-title' }, icon('disk'), el('span', {}, '磁盘')),
       el('div', { class: 'browser-seg' }, segSingle, segDual),
       el('div', { class: 'spacer' }), closeBtn)
     this.side = el('div', { class: 'finder-side' })

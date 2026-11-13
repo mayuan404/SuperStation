@@ -255,7 +255,7 @@ export function openBrowserTab(): Doc {
   const doc: Doc = {
     id: BROWSER_TAB_ID,
     path: '',
-    name: 'Finder',
+    name: '磁盘',
     ext: '',
     kind: 'browser',
     editable: false,
