@@ -126,6 +126,7 @@ const ptyCaptures = new Map<string, string>()
 let termHost: HTMLElement
 let remoteHost: HTMLElement
 const remoteBacking = new Map<string, { profile: TermProfile; remote: string }>()
+let homeDir = ''
 let downloadDir = ''
 let downloadsRoot = ''
 ;(window as any).__bnbRemoteBacking = remoteBacking
@@ -931,8 +932,38 @@ async function quickOpen(): Promise<void> {
   openPalette({ placeholder: '跳转到文件…', items, emptyText: '没有找到文件' })
 }
 
+function remoteTargetForProfile(p: TermProfile) {
+  return {
+    host: p.host,
+    port: p.port ?? 22,
+    user: p.user ?? 'root',
+    secretId: p.hasPassword ? p.id : undefined,
+    mockLocal: p.host === 'mock'
+  }
+}
+
+async function openRemoteSearchHit(hit: any): Promise<void> {
+  const profile: TermProfile | undefined = hit.profile
+  if (!profile) { toast('找不到对应的远程会话'); return }
+  const cacheRoot = homeDir || '/tmp'
+  const safeId = String(profile.id).replace(/[^a-zA-Z0-9_-]/g, '_')
+  const local = `${cacheRoot}/Library/Caches/SuperWorkStation/remote/${safeId}${hit.abs}`
+  toast('正在从远端下载…', 1500)
+  try {
+    await invoke('fs.mkdir', { path: dirname(local) }).catch(() => {})
+    const res = await invoke<any>('remote.download', {
+      ...remoteTargetForProfile(profile), path: hit.abs, to: local
+    }).catch((e: any) => ({ error: e.message }))
+    if (res?.error) throw new Error(String(res.error))
+    remoteBacking.set(local, { profile, remote: hit.abs })
+    await openFile(local, hit.name)
+  } catch (e: any) {
+    toast(`远端文件打开失败：${String(e?.message ?? e).slice(0, 120)}`, 4000)
+  }
+}
+
 function globalSearch(): void {
-  if (!S.state.roots.length) { openFolder(); return }
+  if (!S.state.roots.length && !(S.state.remoteRoots ?? []).length) { openFolder(); return }
   const input = el('input', { type: 'text', placeholder: '搜索文件名与内容…', spellcheck: 'false' })
   const list = el('div', { class: 'list' })
   const stat = el('div', { class: 'empty-row' }, '输入关键词开始搜索')
@@ -952,6 +983,7 @@ function globalSearch(): void {
 
   const openHit = (hit: any) => {
     close()
+    if (hit.remote) { void openRemoteSearchHit(hit); return }
     openFile(hit.path, hit.name).then(() => {
       if (hit.kind === 'content' && hit.line > 1) editor.scrollToLine(hit.line)
     })
@@ -964,16 +996,19 @@ function globalSearch(): void {
       const row = el('div', { class: 'search-hit' + (i === sel ? ' sel' : '') })
       const top = el('div', { class: 'top' })
       const ic = el('div', { class: 'ic' })
-      ic.append(icon(hit.kind === 'name' ? 'file' : 'search'))
+      ic.append(icon(hit.remote ? 'external' : hit.kind === 'name' ? 'file' : 'search'))
       const root = S.rootOf(hit.path) ?? ''
       top.append(ic, el('span', {}, hit.name))
-      if (hit.kind === 'name') top.append(el('span', { class: 'ln' }, '文件名'))
+      if (hit.kind === 'name') top.append(el('span', { class: 'ln' }, hit.remote ? '远程 · 文件名' : '文件名'))
       else top.append(el('span', { class: 'ln' }, `:${hit.line}`))
-      top.append(el('span', { class: 'pth', style: { marginLeft: 'auto', color: 'var(--fg-3)', fontSize: '10.5px' } },
-        hit.path.slice(root.length + 1).replace(/\/[^/]+$/, '')))
+      const dir = hit.remote ? dirname(hit.rel || '') : hit.path.slice(root.length + 1).replace(/\/[^/]+$/, '')
+      const pathText = hit.remote
+        ? `${hit.rootName}${dir && dir !== '.' ? ' / ' + dir : ''}`
+        : dir
+      top.append(el('span', { class: 'pth', style: { marginLeft: 'auto', color: 'var(--fg-3)', fontSize: '10.5px' } }, pathText))
       const pv = el('div', { class: 'pv' })
       if (hit.kind === 'name') {
-        pv.textContent = hit.path.split('/').slice(-2, -1)[0] || ''
+        pv.textContent = hit.remote ? (hit.rel || hit.name) : hit.path.split('/').slice(-2, -1)[0] || ''
       } else {
         const q = input.value
         const hay = flags.caseSensitive ? hit.preview : hit.preview.toLowerCase()
@@ -993,6 +1028,45 @@ function globalSearch(): void {
       list.append(row)
     })
     list.children[sel]?.scrollIntoView({ block: 'nearest' })
+  }
+
+  const collectRemoteNames = async (q: string): Promise<any[]> => {
+    type Target = { profile: TermProfile; root: string; label: string }
+    const targets = new Map<string, Target>()
+    const add = (profile: TermProfile, root: string, label: string) => {
+      if (!root) return
+      const key = `${profile.host}:${profile.port ?? 22}:${profile.user ?? 'root'}:${root}`
+      if (!targets.has(key)) targets.set(key, { profile, root, label })
+    }
+    for (const rr of S.state.remoteRoots ?? []) {
+      add({
+        id: rr.secretId || rr.id, name: rr.name, kind: 'ssh',
+        host: rr.host, port: rr.port, user: rr.user,
+        hasPassword: !!rr.secretId
+      }, rr.path, rr.name)
+    }
+    // 已打开的远端文件面板（例如 101 的“浏览远端文件”）也纳入文件名搜索
+    for (const panel of ctx.remotePanels.values()) {
+      const p = panel.profile as TermProfile | undefined
+      if (p) add(p, panel.path || '.', p.name)
+    }
+    if (!targets.size) return []
+    const groups = await Promise.all(Array.from(targets.values()).map(async (t) => {
+      const res = await invoke<any>('remote.search', {
+        ...remoteTargetForProfile(t.profile), path: t.root, query: q, limit: 60,
+        caseSensitive: flags.caseSensitive
+      }).catch(() => null)
+      return (res?.hits ?? []).map((h: any) => {
+        const base = t.root === '.' ? '.' : t.root.replace(/\/+$/, '')
+        const abs = base === '' ? `/${h.rel}` : `${base}/${h.rel}`
+        return {
+          kind: 'name', remote: true, profile: t.profile, rootName: t.label,
+          path: `ssh://${t.profile.id}${abs}`,
+          abs, rel: h.rel, name: h.name, line: 0, preview: ''
+        }
+      })
+    }))
+    return groups.flat()
   }
 
   const collect = async (namesOnly: boolean, budget: number) => {
@@ -1015,18 +1089,30 @@ function globalSearch(): void {
     const token = ++searchToken
     stat.textContent = '搜索中…'
 
-    // 第一轮：只匹配文件名，秒回
-    const nameHits = (await collect(true, 3)).filter((h) => h.kind === 'name')
+    // 第一轮：先本地文件名，远程并行搜；远程慢也不挡本地结果
+    const remotePromise = collectRemoteNames(q)
+    const localNames = (await collect(true, 3)).filter((h) => h.kind === 'name')
     if (token !== searchToken) return
+    let nameHits = localNames
     hits = nameHits
     if (hits.length) { stat.textContent = `文件名匹配 ${hits.length} 条，正在搜索内容…`; render() }
+    else { stat.textContent = '搜索文件名…'; render() }
 
-    // 第二轮：全文匹配
+    const remoteHits = await remotePromise
+    if (token !== searchToken) return
+    nameHits = [...localNames, ...remoteHits]
+    if (remoteHits.length) {
+      hits = nameHits
+      stat.textContent = `文件名匹配 ${nameHits.length} 条（含远程 ${remoteHits.length}），正在搜索内容…`
+      render()
+    }
+
+    // 第二轮：全文匹配（远端只搜文件名）
     const all = await collect(false, 8)
     if (token !== searchToken) return
     const merged: any[] = []
     const seen = new Set<string>()
-    for (const h of all) {
+    for (const h of [...nameHits, ...all]) {
       const key = h.path + '|' + h.line
       if (seen.has(key)) continue
       seen.add(key)
@@ -1037,7 +1123,8 @@ function globalSearch(): void {
     if (!hits.length) stat.textContent = `没有找到「${q}」`
     else {
       const names = hits.filter((h) => h.kind === 'name').length
-      stat.textContent = `共 ${hits.length} 条（文件名 ${names}，内容 ${hits.length - names}）`
+      const remote = hits.filter((h) => h.remote).length
+      stat.textContent = `共 ${hits.length} 条（文件名 ${names}${remote ? `，远程 ${remote}` : ''}，内容 ${hits.length - names}）`
     }
     sel = 0
     render()
@@ -1812,10 +1899,11 @@ async function boot(): Promise<void> {
   let initial = ''
   let initialFile = ''
   try {
-    const info = await invoke<{ initial: string; initialFile: string; samples: string }>('app.info')
+    const info = await invoke<{ initial: string; initialFile: string; samples: string; home: string }>('app.info')
     initial = info.initial || ''
     initialFile = info.initialFile || ''
     samplesPath = info.samples || ''
+    homeDir = info.home || ''
   } catch {}
 
   invoke<boolean>('ui.isFullscreen').then((fs) => {

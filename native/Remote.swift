@@ -89,7 +89,18 @@ enum Remote {
         }
         inPipe.fileHandleForWriting.closeFile()
 
+        // 超时兜底：以前 timeout 参数没有真正生效，远端 grep/find 卡住会永远等
+        let softKill = DispatchWorkItem {
+            if p.isRunning { p.terminate() }
+        }
+        let hardKill = DispatchWorkItem {
+            if p.isRunning { kill(p.processIdentifier, SIGKILL) }
+        }
+        DispatchQueue.global().asyncAfter(deadline: .now() + timeout, execute: softKill)
+        DispatchQueue.global().asyncAfter(deadline: .now() + timeout + 1.0, execute: hardKill)
         p.waitUntilExit()
+        softKill.cancel()
+        hardKill.cancel()
         group.wait()
         return Result(out: outData, err: errData, code: p.terminationStatus)
     }
@@ -142,6 +153,38 @@ enum Remote {
             ["name": e.name, "isDir": e.isDir, "size": e.size, "mode": e.mode]
         }
         return ["entries": entries]
+    }
+
+    /// 远程文件名搜索：只跑 find，不扫内容，避免大仓库 grep 慢到不可用。
+    static func search(_ t: Target, root: String, query: String, limit: Int, caseSensitive: Bool) -> [String: Any] {
+        let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        if q.isEmpty { return ["hits": []] }
+        var escaped = ""
+        for ch in q {
+            if "*?[]\\".contains(ch) { escaped.append("\\") }
+            escaped.append(ch)
+        }
+        let pattern = "*\(escaped)*"
+        let opt = caseSensitive ? "-name" : "-iname"
+        let n = max(1, min(200, limit))
+        let cmd = "cd \(quote(root)) 2>/dev/null || exit 7; LC_ALL=C find . -type f -not -path './.git/*' \(opt) \(quote(pattern)) -print 2>/dev/null | head -n \(n)"
+        let res = run(t, command: cmd, timeout: 12)
+        let text = String(data: res.out, encoding: .utf8) ?? ""
+        if res.code != 0 && text.isEmpty {
+            let err = String(data: res.err, encoding: .utf8) ?? ""
+            return ["error": err.isEmpty ? "远端搜索失败（退出码 \(res.code)）" : err.trimmingCharacters(in: .whitespacesAndNewlines), "hits": []]
+        }
+        var hits: [[String: Any]] = []
+        for raw in text.components(separatedBy: "\n") {
+            let line = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            if line.isEmpty { continue }
+            let rel = line.hasPrefix("./") ? String(line.dropFirst(2)) : line
+            if rel.isEmpty { continue }
+            let name = (rel as NSString).lastPathComponent
+            hits.append(["rel": rel, "name": name])
+            if hits.count >= n { break }
+        }
+        return ["hits": hits]
     }
 
     static func download(_ t: Target, path: String, to: String) -> [String: Any] {

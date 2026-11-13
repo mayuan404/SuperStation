@@ -861,6 +861,19 @@ final class API {
                 mockLocal: (params["mockLocal"] as? Bool) ?? ((params["host"] as? String) == "mock"))
             return Remote.warm(t0)
 
+        case "remote.search":
+            let st = Remote.Target(
+                host: params["host"] as? String ?? "",
+                port: params["port"] as? Int ?? 22,
+                user: params["user"] as? String ?? "root",
+                secretId: params["secretId"] as? String,
+                mockLocal: (params["mockLocal"] as? Bool) ?? ((params["host"] as? String) == "mock"))
+            return Remote.search(st,
+                root: params["path"] as? String ?? ".",
+                query: params["query"] as? String ?? "",
+                limit: params["limit"] as? Int ?? 60,
+                caseSensitive: params["caseSensitive"] as? Bool ?? false)
+
         case "remote.list", "remote.download", "remote.upload", "remote.mkdir",
              "remote.remove", "remote.rename":
             let t = Remote.Target(
