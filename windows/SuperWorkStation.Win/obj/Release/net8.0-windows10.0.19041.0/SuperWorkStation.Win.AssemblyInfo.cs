@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("SuperWorkStation")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+2d7db0b07db2bd758a4d9109f1d421a59a2555a8")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+1b1cea08d2ae528e40f2638fc0f517a1d41a9654")]
 [assembly: System.Reflection.AssemblyProductAttribute("SuperWorkStation")]
 [assembly: System.Reflection.AssemblyTitleAttribute("SuperWorkStation")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

@@ -95,7 +95,7 @@ internal static class FsX
             return new Dictionary<string, object?>
             {
                 ["kind"] = "text",
-                ["text"] = Encoding.UTF8.GetString(data),
+                ["text"] = Encoding.UTF8.GetString(data).TrimStart('\uFEFF'),
                 ["size"] = data.Length,
                 ["mtime"] = mtime,
                 ["truncated"] = false

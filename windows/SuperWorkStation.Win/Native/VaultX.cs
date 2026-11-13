@@ -28,6 +28,16 @@ internal static class VaultX
 
     public static byte[] Seal(byte[] plain, byte[] key)
     {
+        var box = SealBox(plain, key);
+        var outBytes = new byte[5 + box.Length];
+        Buffer.BlockCopy(Encoding.ASCII.GetBytes("BNBK1"), 0, outBytes, 0, 5);
+        Buffer.BlockCopy(box, 0, outBytes, 5, box.Length);
+        return outBytes;
+    }
+
+    /// <summary>不带容器头的密封盒：nonce(12) + ciphertext + tag(16)，与 macOS 的 sealBox 一致。</summary>
+    public static byte[] SealBox(byte[] plain, byte[] key)
+    {
         var nonce = RandomNumberGenerator.GetBytes(12);
         var cipher = new byte[plain.Length];
         var tag = new byte[16];
@@ -35,12 +45,30 @@ internal static class VaultX
         {
             aes.Encrypt(nonce, plain, cipher, tag);
         }
-        var outBytes = new byte[5 + 12 + cipher.Length + 16];
-        Buffer.BlockCopy(Encoding.ASCII.GetBytes("BNBK1"), 0, outBytes, 0, 5);
-        Buffer.BlockCopy(nonce, 0, outBytes, 5, 12);
-        Buffer.BlockCopy(cipher, 0, outBytes, 17, cipher.Length);
-        Buffer.BlockCopy(tag, 0, outBytes, 17 + cipher.Length, 16);
+        var outBytes = new byte[12 + cipher.Length + 16];
+        Buffer.BlockCopy(nonce, 0, outBytes, 0, 12);
+        Buffer.BlockCopy(cipher, 0, outBytes, 12, cipher.Length);
+        Buffer.BlockCopy(tag, 0, outBytes, 12 + cipher.Length, 16);
         return outBytes;
+    }
+
+    public static byte[] OpenBox(byte[] blob, byte[] key)
+    {
+        if (blob.Length < 28) throw new ApiException("加密数据已损坏");
+        var nonce = blob.AsSpan(0, 12).ToArray();
+        var cipher = blob.AsSpan(12, blob.Length - 12 - 16).ToArray();
+        var tag = blob.AsSpan(blob.Length - 16, 16).ToArray();
+        var plain = new byte[cipher.Length];
+        try
+        {
+            using var aes = new AesGcm(key, 16);
+            aes.Decrypt(nonce, cipher, tag, plain);
+        }
+        catch (CryptographicException)
+        {
+            throw new ApiException("解密失败：密码错误或文件已损坏");
+        }
+        return plain;
     }
 
     public static byte[] Open(byte[] blob, byte[] key)
@@ -216,8 +244,8 @@ internal static class VaultX
         using (var fs = File.Create(outPath))
         {
             fs.Write(header);
-            fs.Write(Seal(FileVerifier, key));
-            fs.Write(Seal(plain, key));
+            fs.Write(SealBox(FileVerifier, key));
+            fs.Write(SealBox(plain, key));
         }
         File.Delete(file);
         lock (KeyLock) FileKeys[outPath] = key;
@@ -235,7 +263,7 @@ internal static class VaultX
         var key = Derive(password, salt, iterations);
         var verifier = blob.AsSpan(25, 42).ToArray();
         byte[] plain;
-        try { plain = Open(verifier, key); }
+        try { plain = OpenBox(verifier, key); }
         catch (ApiException) { throw new ApiException("密码错误"); }
         if (!plain.AsSpan().SequenceEqual(FileVerifier)) throw new ApiException("密码错误");
         lock (KeyLock) FileKeys[file] = key;
@@ -253,7 +281,7 @@ internal static class VaultX
         var blob = File.ReadAllBytes(file);
         var key = FileKey(file) ?? throw new ApiException("该文件已加密，请先解锁");
         var payload = blob.AsSpan(25 + 42).ToArray();
-        var plain = Open(payload, key);
+        var plain = OpenBox(payload, key);
         var target = file[..^Suffix.Length];
         File.WriteAllBytes(target, plain);
         File.Delete(file);
@@ -303,7 +331,7 @@ internal static class VaultX
             // 保留原文件头（salt/iterations），只重新封装正文
             var blob = File.ReadAllBytes(PathUtil.FromJs(jsPath));
             var header = blob.AsSpan(0, 25 + 42).ToArray();
-            return header.Concat(Seal(plain, fileKey)).ToArray();
+            return header.Concat(SealBox(plain, fileKey)).ToArray();
         }
         throw new ApiException("该文件已加密，请先解锁");
     }

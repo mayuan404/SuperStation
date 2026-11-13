@@ -1299,7 +1299,7 @@ button:disabled,
 .platform-windows .titlebar { padding-left: 10px; }
 
 .win-actions {
-  display: flex;
+  display: none;
   align-items: center;
   gap: 2px;
   margin-left: 6px;
@@ -1324,3 +1324,4 @@ button:disabled,
 
 .win-btn:hover { background: rgba(127, 127, 127, 0.18); color: var(--fg); }
 .win-btn.danger:hover { background: #e81123; color: #fff; }
+.platform-windows .win-actions { display: flex; }

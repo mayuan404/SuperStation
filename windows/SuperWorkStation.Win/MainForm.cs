@@ -38,6 +38,7 @@ internal sealed class MainForm : Form, IMessageFilter
         FormBorderStyle = FormBorderStyle.None;
         StartPosition = FormStartPosition.CenterScreen;
         MinimumSize = new Size(760, 500);
+        Size = new Size(1280, 820);
         BackColor = Color.FromArgb(0xF2, 0xF2, 0xF4);
         KeyPreview = true;
         AutoScaleMode = AutoScaleMode.Dpi;

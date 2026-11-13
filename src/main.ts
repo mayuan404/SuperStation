@@ -158,7 +158,8 @@ function buildShell(): void {
     aiBtn,
     searchBtn
   )
-  if (isWindows()) {
+  // Windows 用网页自绘的窗口按钮；macOS 下这组按钮由 CSS 隐藏
+  {
     const actions = el('div', { class: 'win-actions' })
     const mkBtn = (label: string, glyph: string, action: string, danger = false) => {
       const b = el('button', { class: `win-btn${danger ? ' danger' : ''}`, title: label })

@@ -1,6 +1,7 @@
 // 平台差异：快捷键、路径习惯、文案。macOS 用 ⌘，Windows 用 Ctrl。
 
-let windows = false
+// 先用 UA 兜底：即使 app.info 失败，Windows 的 Ctrl 映射也不会丢
+let windows = /Windows/i.test(navigator.userAgent)
 let homeDir = ''
 let defaultShellPath = '/bin/zsh'
 
