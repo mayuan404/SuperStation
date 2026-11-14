@@ -65,7 +65,7 @@ function installCursorBridge(): void {
   })
 }
 import { terminalMenu, openTerminalMenuAtCenter, registerRemoteRoots, addRemoteRoot, removeRemoteRoot, remoteRootMenu, gitAction, sshForm, openTerminal, openRemote, remoteSaveQueue } from './ui/sessions'
-import { TermSession, type TermProfile } from './ui/terminal'
+import { TermSession, applyTerminalFont, type TermProfile } from './ui/terminal'
 import { Sidebar, type Entry } from './ui/sidebar'
 import { renderTabs } from './ui/tabs'
 import { THEMES, ICON_SETS, applyTheme } from './ui/theme'
@@ -483,11 +483,12 @@ function syncActive(): void {
   if (browser?.visible()) browser.hide()
 
   if (!S.state.docs.length && !ui.tabbar.querySelector('.tab-hint')) {
-    ui.tabbar.append(el('div', { class: 'tab-hint' }, '点击空白处新建临时文件  ⌘N'))
+    ui.tabbar.append(el('div', { class: 'tab-hint' }, '双击空白处新建临时文件  ⌘N'))
   }
   if (!ui.tabbar.dataset.wired) {
     ui.tabbar.dataset.wired = '1'
-    ui.tabbar.addEventListener('click', (ev: MouseEvent) => {
+    // 双击才建新文件：以前是单击，点视图切换按钮时手一歪落在标签栏空白处就会多出一个 tab
+    ui.tabbar.addEventListener('dblclick', (ev: MouseEvent) => {
       if (ev.target !== ui.tabbar) return
       newUntitled()
     })
@@ -876,6 +877,14 @@ function installKeys(): void {
 
 function zoom(dir: number): void {
   const s = S.state.settings
+  // 终端在前台时调终端字号，其余调编辑器字号（两套配置互相独立）
+  if (S.activeDoc()?.kind === 'terminal') {
+    s.termFontSize = dir === 0 ? 13 : Math.min(22, Math.max(9, (s.termFontSize || 13) + dir))
+    S.saveSettings()
+    applyTerminalFont()
+    toast(`终端字号 ${s.termFontSize}px`, 900)
+    return
+  }
   s.fontSize = dir === 0 ? 13 : Math.min(24, Math.max(9, s.fontSize + dir))
   document.documentElement.style.setProperty('--editor-font-size', `${s.fontSize}px`)
   ui.editorHost.style.setProperty('--editor-font-size', `${s.fontSize}px`)

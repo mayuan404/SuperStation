@@ -47,6 +47,10 @@ export interface Settings {
   showHidden: boolean
   /** 本地终端默认启动目录；留空 = 用户主目录 */
   localCwd?: string
+  /** 终端字号（与编辑器字号独立） */
+  termFontSize: number
+  /** 终端字体；留空 = 用内置等宽字体栈 */
+  termFontFamily: string
   roots: string[]
   remoteRoots: RemoteRoot[]
   expanded: string[]
@@ -102,6 +106,8 @@ export const DEFAULT_SETTINGS: Settings = {
   aiBaseUrl: 'https://api.deepseek.com',
   aiModel: 'deepseek-flash',
   fontSize: 14,
+  termFontSize: 13,
+  termFontFamily: '',
   lineWrap: false,
   autoSave: false,
   sidebarWidth: 248,

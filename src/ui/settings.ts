@@ -4,6 +4,7 @@ import * as S from '../lib/store'
 import { openSheet, openPalette, toast, prompt, type PaletteItem } from './overlays'
 import { THEMES, ICON_SETS, applyTheme } from './theme'
 import { ctx } from '../lib/ctx'
+import { TERM_FONTS, applyTerminalFont } from './terminal'
 
 export function themePalette(): void {
   const items: PaletteItem[] = THEMES.map((t) => ({
@@ -94,10 +95,36 @@ export function openSettings(): void {
     range.addEventListener('input', () => {
       s.fontSize = Number(range.value)
       val.textContent = `${s.fontSize}px`
+      // 两个地方都要更新：编辑器宿主 + 根节点（预览/终端等读同一变量）
       ctx.ui?.editorHost.style.setProperty('--editor-font-size', `${s.fontSize}px`)
+      document.documentElement.style.setProperty('--editor-font-size', `${s.fontSize}px`)
       S.saveSettings()
     })
-    row('编辑字号', '', rangeWrap)
+    row('编辑字号', '编辑与 Markdown 预览', rangeWrap)
+
+    // ---- 终端字号 / 字体（与编辑器独立） ----
+    const termSize = Number(s.termFontSize) || 13
+    const termRange = el('input', { type: 'range', min: '9', max: '22', step: '1', value: String(termSize) })
+    const termVal = el('span', { class: 'val' }, `${termSize}px`)
+    const termWrap = el('div', { style: { display: 'flex', alignItems: 'center', gap: '8px' } }, termRange, termVal)
+    termRange.addEventListener('input', () => {
+      s.termFontSize = Number(termRange.value)
+      termVal.textContent = `${s.termFontSize}px`
+      S.saveSettings()
+      applyTerminalFont()
+    })
+    row('终端字号', '本地与 SSH 终端，立即生效', termWrap)
+
+    const fontSel = el('select', { class: 'opt-select' }) as HTMLSelectElement
+    for (const f of TERM_FONTS) {
+      fontSel.append(el('option', { value: f.id, selected: (s.termFontFamily ?? '') === f.id ? 'selected' : undefined }, f.label))
+    }
+    fontSel.addEventListener('change', () => {
+      s.termFontFamily = fontSel.value
+      S.saveSettings()
+      applyTerminalFont()
+    })
+    row('终端字体', '需要系统里装了该字体，否则自动回退', fontSel)
 
     const mkToggle = (key: 'lineWrap' | 'autoSave' | 'showHidden', onChange?: () => void) => {
       const cb = el('input', { type: 'checkbox' })

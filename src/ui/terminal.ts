@@ -4,9 +4,39 @@ import { SearchAddon } from '@xterm/addon-search'
 import '@xterm/xterm/css/xterm.css'
 import { invoke } from '../lib/bridge'
 import { defaultShell, isWindows } from '../lib/platform'
+import * as S from '../lib/store'
 import { el } from '../lib/dom'
 import { icon } from '../lib/icons'
 import { closeQuickCommandPicker, openQuickCommandManager, openQuickCommandPicker } from './quickcmd'
+
+/** 终端字体栈：用户没选就用内置的（macOS / Windows 各自的等宽字体） */
+export const TERM_FONTS: { id: string; label: string; stack: string }[] = [
+  { id: '', label: '跟随系统等宽', stack: '"SF Mono", Menlo, Monaco, Consolas, "PingFang SC", "Microsoft YaHei Mono", monospace' },
+  { id: 'jetbrains', label: 'JetBrains Mono', stack: '"JetBrains Mono", "SF Mono", Menlo, Consolas, monospace' },
+  { id: 'sfmono', label: 'SF Mono', stack: '"SF Mono", Menlo, monospace' },
+  { id: 'menlo', label: 'Menlo', stack: 'Menlo, Monaco, monospace' },
+  { id: 'consolas', label: 'Consolas', stack: 'Consolas, "Courier New", monospace' },
+  { id: 'sarasa', label: '更纱黑体 Mono', stack: '"Sarasa Mono SC", "Sarasa Term SC", monospace' }
+]
+
+function fontStack(id: string): string {
+  return (TERM_FONTS.find((f) => f.id === id) ?? TERM_FONTS[0]).stack
+}
+
+/** 当前终端字号 / 字体栈（每次读取，设置改了立即生效） */
+export function termFontConfig(): { size: number; family: string } {
+  const s = S.state.settings
+  return {
+    size: Math.min(24, Math.max(9, Number(s.termFontSize) || 13)),
+    family: fontStack(s.termFontFamily ?? '')
+  }
+}
+
+/** 已打开的终端（设置变更后统一刷新字体） */
+const liveSessions = new Set<TermSession>()
+export function applyTerminalFont(): void {
+  for (const t of liveSessions) t.applyFont()
+}
 
 export interface TermProfile {
   id: string
@@ -105,9 +135,10 @@ export class TermSession {
     const accent = cssVar('--accent', '#3b82f6')
     const sel = cssVar('--accent-soft', 'rgba(59,130,246,.25)')
 
+    const font = termFontConfig()
     this.term = new Terminal({
-      fontFamily: '"SF Mono", Menlo, Monaco, "PingFang SC", monospace',
-      fontSize: Number(cssVar('--editor-font-size', '14px').replace('px', '')) || 14,
+      fontFamily: font.family,
+      fontSize: font.size,
       lineHeight: 1.25,
       scrollback: 8000,
       cursorBlink: true,
@@ -121,6 +152,7 @@ export class TermSession {
         brightBlack: '#6b6b70'
       }
     })
+    liveSessions.add(this)
     this.fit = new FitAddon()
     this.term.loadAddon(this.fit)
     this.search = new SearchAddon()
@@ -395,7 +427,17 @@ export class TermSession {
 
   focus(): void { this.term.focus() }
 
+  /** 设置里改了终端字体/字号后调用：xterm 支持热更新，顺手重新 fit 一次 */
+  applyFont(): void {
+    const font = termFontConfig()
+    this.term.options.fontFamily = font.family
+    this.term.options.fontSize = font.size
+    try { this.fit.fit() } catch {}
+    try { this.term.refresh(0, this.term.rows - 1) } catch {}
+  }
+
   dispose(): void {
+    liveSessions.delete(this)
     this.disposed = true
     if (this.ptyId) invoke('pty.close', { id: this.ptyId }).catch(() => {})
     this.term.dispose()
