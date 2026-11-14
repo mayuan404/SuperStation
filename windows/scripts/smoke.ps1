@@ -1,6 +1,6 @@
 # 启动、存活检查、日志与截图（VM / 公司电脑都能用）
 param(
-  [string]$Exe = "$PSScriptRoot\..\..\out\win-x64\SuperWorkStation.exe",
+  [string]$Exe = (Join-Path (Split-Path $PSScriptRoot -Parent) 'SuperWorkStation.exe'),
   [int]$WaitSeconds = 10,
   [switch]$NoScreenshot
 )
