@@ -33,7 +33,12 @@ export function basename(p: string): string {
 
 export function dirname(p: string): string {
   const i = p.lastIndexOf('/')
-  return i <= 0 ? '/' : p.slice(0, i)
+  if (i < 0) return p
+  if (i === 0) return '/'
+  const head = p.slice(0, i)
+  // Windows 盘符根：C:/Users → C:/
+  if (/^[A-Za-z]:$/.test(head)) return head + '/'
+  return head
 }
 
 export function extname(name: string): string {

@@ -3,6 +3,7 @@ import { FitAddon } from '@xterm/addon-fit'
 import { SearchAddon } from '@xterm/addon-search'
 import '@xterm/xterm/css/xterm.css'
 import { invoke } from '../lib/bridge'
+import { defaultShell, isWindows } from '../lib/platform'
 import { el } from '../lib/dom'
 import { icon } from '../lib/icons'
 import { closeQuickCommandPicker, openQuickCommandManager, openQuickCommandPicker } from './quickcmd'
@@ -251,33 +252,51 @@ export class TermSession {
   private async start(useSecret = true, forceLocal = false): Promise<void> {
     this.term.write('\x1b[2m正在启动…\x1b[0m\r\n')
     const p = this.profile
+    const win = isWindows()
     const args: string[] = []
-    let program = '/bin/zsh'
+    let program = win ? defaultShell() : '/bin/zsh'
+    let kind: 'local' | 'ssh' = 'local'
+    let sshParams: Record<string, any> = {}
     if (p.kind === 'ssh' && !forceLocal) {
-      program = '/usr/bin/ssh'
-      args.push('-o', 'ServerAliveInterval=30', '-o', 'StrictHostKeyChecking=accept-new')
-      if (p.port && p.port !== 22) args.push('-p', String(p.port))
-      const dest = `${p.user || 'root'}@${p.host}`
-      if (p.remotePath) {
-        // 远端 shell 里先 cd 再起登录 shell，失败就留在 home
-        const q = "'" + p.remotePath.replace(/'/g, "'\\''") + "'"
-        args.push('-t', dest, `cd ${q} 2>/dev/null; exec "\${SHELL:-/bin/bash}" -l`)
+      if (win && useSecret && p.hasPassword) {
+        // Windows 的系统 ssh 不支持 askpass：保存过密码的会话交给原生 SSH 客户端
+        program = 'ssh-pty'
+        kind = 'ssh'
+        sshParams = {
+          host: p.host,
+          port: p.port ?? 22,
+          user: p.user || 'root',
+          secretId: p.id,
+          remotePath: p.remotePath
+        }
       } else {
-        args.push(dest)
+        program = win ? 'ssh' : '/usr/bin/ssh'
+        args.push('-o', 'ServerAliveInterval=30', '-o', 'StrictHostKeyChecking=accept-new')
+        if (p.port && p.port !== 22) args.push('-p', String(p.port))
+        const dest = `${p.user || 'root'}@${p.host}`
+        if (p.remotePath) {
+          // 远端 shell 里先 cd 再起登录 shell，失败就留在 home
+          const q = "'" + p.remotePath.replace(/'/g, "'\\''") + "'"
+          args.push('-t', dest, `cd ${q} 2>/dev/null; exec "\${SHELL:-/bin/bash}" -l`)
+        } else {
+          args.push(dest)
+        }
       }
-    } else {
+    } else if (!win) {
       args.push('-l')
     }
     const env: Record<string, string> = {}
     this.usedSecret = false
     if (p.kind === 'ssh' && useSecret && p.hasPassword) {
-      env['__secretId'] = p.id
       this.usedSecret = true
+      if (!win) env['__secretId'] = p.id
     }
     try {
       const res = await invoke<{ id: string }>('pty.open', {
         program,
         args,
+        kind,
+        ...sshParams,
         env,
         cwd: p.cwd || undefined,
         cols: this.term.cols,

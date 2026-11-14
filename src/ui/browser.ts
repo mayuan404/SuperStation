@@ -1,4 +1,5 @@
 import { invoke } from '../lib/bridge'
+import { multiSelect, homePath } from '../lib/platform'
 import { el, clear } from '../lib/dom'
 import { dirname, humanSize, relativeTime } from '../lib/files'
 import { fileIcon, icon, iconColor } from '../lib/icons'
@@ -321,7 +322,7 @@ class BrowserPane {
       const list = this.visibleEntries()
       const [a, b] = [Math.min(this.anchor, i), Math.max(this.anchor, i)]
       for (let k = a; k <= b; k++) this.sel.add(list[k].path)
-    } else if (ev.metaKey) {
+    } else if (multiSelect(ev)) {
       if (this.sel.has(e.path)) this.sel.delete(e.path)
       else this.sel.add(e.path)
       this.anchor = i
@@ -535,21 +536,36 @@ export class FileBrowser {
     let home = ''
     try { home = (await invoke<{ home: string }>('app.info')).home || '' } catch {}
     if (!home) return
-    const groups: Array<[string, Array<[string, string]>]> = [
-      ['个人', [
-        ['个人目录', home],
-        ['桌面', `${home}/Desktop`],
-        ['文稿', `${home}/Documents`],
-        ['下载', `${home}/Downloads`],
-        ['图片', `${home}/Pictures`],
-        ['工作目录', `${home}/up`]
-      ]],
-      ['位置', [
-        ['整个磁盘', '/'],
-        ['应用程序', '/Applications'],
-        ['用户', '/Users']
-      ]]
-    ]
+    const isWin = !!home.match(/^[A-Za-z]:\//)
+    const groups: Array<[string, Array<[string, string]>]> = isWin
+      ? [
+          ['个人', [
+            ['个人目录', home],
+            ['桌面', `${home}/Desktop`],
+            ['文稿', `${home}/Documents`],
+            ['下载', `${home}/Downloads`],
+            ['图片', `${home}/Pictures`]
+          ]],
+          ['位置', [
+            ['系统盘', 'C:/'],
+            ['临时目录', `${home}/AppData/Local/Temp`]
+          ]]
+        ]
+      : [
+          ['个人', [
+            ['个人目录', home],
+            ['桌面', `${home}/Desktop`],
+            ['文稿', `${home}/Documents`],
+            ['下载', `${home}/Downloads`],
+            ['图片', `${home}/Pictures`],
+            ['工作目录', `${home}/up`]
+          ]],
+          ['位置', [
+            ['整个磁盘', '/'],
+            ['应用程序', '/Applications'],
+            ['用户', '/Users']
+          ]]
+        ]
     for (const [title, items] of groups) {
       const rows: HTMLElement[] = []
       for (const [name, path] of items) {
@@ -623,7 +639,7 @@ export class FileBrowser {
     if (!this.panes.length) this.addPane()
     const p = this.active ?? this.panes[0]
     if (path) p.navigate(path, true)
-    else if (!p.path) p.navigate(localStorage.getItem('bnb.browser.path') || '/Users', true)
+    else if (!p.path) p.navigate(localStorage.getItem('bnb.browser.path') || homePath() || '/Users', true)
     setTimeout(() => p.el.querySelector('.browser-list')?.setAttribute('tabindex', '0'), 30)
   }
 

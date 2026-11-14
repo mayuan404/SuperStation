@@ -39,6 +39,15 @@ A ~3 MB native shell (Swift + system WebView) that boots instantly: the sidebar 
 
 ### 要求与安装
 
+**Windows x64（0.4.0 起）**
+
+- Windows 10 1809+ / Windows 11，x64（ARM64 机器通过系统 x64 模拟运行）
+- 下载 **`SuperWorkStation-0.4.0-win-x64.zip`**（自包含，无需安装 .NET）→ 解压整个文件夹 → 双击 `SuperWorkStation.exe`
+- 缺少 WebView2 时运行 `scripts\install-webview2.ps1`；未签名，首次运行 SmartScreen 选「更多信息 → 仍要运行」
+- 构建与限制见 [windows/README.md](windows/README.md)，发布说明见 [RELEASE-0.4.0.md](RELEASE-0.4.0.md)
+
+**macOS（0.3.1）**
+
 - macOS 13+（Apple Silicon 与 Intel 均可，构建脚本默认编译当前架构）
 - 下载 **`SuperWorkStation-0.3.1.dmg`** → 拖进「应用程序」
 - 校验值（0.3.1）：`77c815bcc9ca0731bc7ac245ac1d5e060713c129f6fbd31bb4b8f50b74ae6d62`
@@ -100,6 +109,15 @@ npm install
 
 ### Requirements & install
 
+**Windows x64 (since 0.4.0)**
+
+- Windows 10 1809+ / Windows 11, x64 (ARM64 devices run it via the system x64 emulation)
+- Download **`SuperWorkStation-0.4.0-win-x64.zip`** (self-contained, no .NET runtime needed), extract the whole folder and run `SuperWorkStation.exe`
+- If WebView2 is missing, run `scripts\install-webview2.ps1`; the build is unsigned — choose "More info → Run anyway" on the SmartScreen prompt
+- Build notes and limitations: [windows/README.md](windows/README.md); release notes: [RELEASE-0.4.0.md](RELEASE-0.4.0.md)
+
+**macOS (0.3.1)**
+
 - macOS 13+ (Apple Silicon and Intel; the build script compiles the host architecture)
 - Download **`SuperWorkStation-0.3.1.dmg`**, drag the app into **Applications**
 - SHA-256 (0.3.1): `77c815bcc9ca0731bc7ac245ac1d5e060713c129f6fbd31bb4b8f50b74ae6d62`
@@ -148,4 +166,5 @@ MIT
 ## 更新记录
 
 - 每个版本：见 [CHANGELOG.md](CHANGELOG.md)
-- 当前版本 0.3.1 的发布说明（安装、升级、已知限制）：见 [RELEASE-0.3.1.md](RELEASE-0.3.1.md)
+- 0.4.0（Windows x64 首发）：见 [RELEASE-0.4.0.md](RELEASE-0.4.0.md)
+- 0.3.1（macOS 当前版本）：见 [RELEASE-0.3.1.md](RELEASE-0.3.1.md)

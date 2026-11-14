@@ -141,7 +141,7 @@ function selectionText(): string {
  * 双击选整行、三击选段落，并阻止默认的「双击选词」。
  */
 export function installLineSelection(root: HTMLElement, opts: { skip?: string } = {}): void {
-  const skipSel = opts.skip ?? 'a, pre, code, table, .line-hl, img, svg, input, textarea'
+  const skipSel = opts.skip ?? 'a, pre, code, table, .line-hl, .md-code-copy, .json-bar, img, svg, input, textarea'
 
   root.addEventListener('mousedown', (ev) => {
     if (ev.button !== 0) return

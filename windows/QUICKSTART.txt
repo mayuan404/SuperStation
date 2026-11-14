@@ -1,0 +1,27 @@
+SuperWorkStation 0.4.0 (Windows x64)
+=====================================
+
+一、运行
+  1. 解压整个文件夹（不要只拷 exe）。
+  2. 双击 SuperWorkStation.exe。
+  3. 若提示缺少 WebView2：右键用 PowerShell 运行 scripts\install-webview2.ps1，
+     然后重新打开；或手动安装 x64 版 WebView2 Runtime。
+
+二、第一次使用
+  - 左侧「本地」→「打开文件夹」选择工作区（之后才有写权限）。
+  - 顶部 + 新建文件；Ctrl+S 保存；Ctrl+P 快速打开；Ctrl+Shift+F 全局搜索。
+  - 终端：命令面板（Ctrl+K）→「新建本地终端」，默认 PowerShell。
+  - SSH：在「会话」里新建 SSH 会话并保存密码；终端会走原生 SSH 客户端，
+    远端工作区走 SFTP。未保存密码时终端会回落到系统 ssh.exe，手动输密码。
+
+三、已知限制（首版）
+  - Office 预览：没有缩略图，按钮会用系统默认程序打开。
+  - EPUB：暂不支持内置阅读，用默认阅读器。
+  - 全局热键：未实现。
+  - 未签名：SmartScreen 可能提示「未知发布者」，选「仍要运行」。
+
+四、排障
+  - 日志：%LOCALAPPDATA%\SuperWorkStation\logs\SuperWorkStation.log
+  - 数据：%APPDATA%\SuperWorkStation（草稿、历史、SSH 密码、AI Key）
+  - 卡在空白页：先看日志里有没有 BOOT/NAV 记录，再确认 WebView2 已安装。
+  - 一键自检（启动+截图+日志）：scripts\smoke.ps1
