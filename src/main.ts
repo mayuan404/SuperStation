@@ -9,6 +9,7 @@ import { checkJSON } from './lib/jsoncheck'
 import type { Doc } from './lib/store'
 import { Editor } from './editor/editor'
 import { renderPreview, renderEmpty } from './preview/preview'
+import { initScrollSync } from './preview/scroll-sync'
 import { AIPanel } from './ui/ai'
 import { FileBrowser } from './ui/browser'
 import { openSettings, openShortcuts, themePalette } from './ui/settings'
@@ -221,6 +222,17 @@ function buildShell(): void {
 
   wireResizer(resizer)
   editor = new Editor(ui.editorHost)
+  // 分栏时编辑区 / 预览区滚动互相同步
+  initScrollSync({
+    getEditor: () => editor?.view ?? null,
+    getScroller: () => ui.previewHost?.querySelector('.preview-scroll') as HTMLElement | null,
+    isActive: () => {
+      const doc = S.activeDoc()
+      return !!doc && doc.view === 'split'
+        && !ui.editorPane.classList.contains('hidden')
+        && !ui.previewPane.classList.contains('hidden')
+    }
+  })
   editor.onChange = (text) => {
     const doc = S.activeDoc()
     if (!doc || !doc.editable) return
@@ -1996,6 +2008,25 @@ async function boot(): Promise<void> {
     return out
   },
   openRemoteMock: () => openRemote({ id: 'mock', name: '模拟远端', kind: 'ssh', host: 'mock', user: 'me', port: 22 }),
+  // 测试钩子：开一个 PTY（本地或 SSH），按序写入，收集一段时间输出后关闭
+  ptyProbe: async (params: any, inputs: string[] = [], waitMs = 4000) => {
+    const r = await invoke<{ id: string }>('pty.open', params)
+    let out = ''
+    const off = onEvent('pty.data', (p: any) => {
+      if (p.id !== r.id) return
+      try { out += atob(p.data) } catch {}
+    })
+    await new Promise((ok) => setTimeout(ok, 900))
+    for (const text of inputs) {
+      await invoke('pty.write', { id: r.id, data: btoa(text) }).catch(() => {})
+      await new Promise((ok) => setTimeout(ok, 350))
+    }
+    await new Promise((ok) => setTimeout(ok, waitMs))
+    off()
+    await invoke('pty.close', { id: r.id }).catch(() => {})
+    return out
+  },
+
   openTerm: (kind: string) => openTerminal({ id: 'local', name: '终端', kind: (kind as any) || 'local' }),
   type: (t: string) => {
     const d = S.activeDoc()
