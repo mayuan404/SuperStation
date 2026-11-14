@@ -680,7 +680,7 @@ final class API {
             return NSNull()
 
         case "app.info":
-            return ["version": "0.4.1", "home": NSHomeDirectory(),
+            return ["version": "0.4.2", "home": NSHomeDirectory(),
                     "os": ProcessInfo.processInfo.operatingSystemVersionString,
                     // 必须落在 AllowedRoots 白名单里（/tmp 与 Caches/SuperWorkStation），
                     // 否则 <img> 通过 scheme 读它会被 403
