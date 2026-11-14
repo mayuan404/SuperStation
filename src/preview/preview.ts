@@ -124,6 +124,48 @@ md.renderer.rules.link_open = (tokens, idx, options, env, self) => {
   return self.renderToken(tokens, idx, options)
 }
 
+// 代码块统一包一层容器，右上角挂复制按钮（点击由 preview 的委托处理器接管）
+function copyButton(extraClass = ''): HTMLButtonElement {
+  return el('button', {
+    type: 'button',
+    class: `md-code-copy${extraClass ? ' ' + extraClass : ''}`,
+    title: '复制代码',
+    'aria-label': '复制代码'
+  }, '复制')
+}
+
+/** fence 走字符串渲染，这里复用同一份按钮标记，避免两处各写一遍 */
+const COPY_BTN_HTML = copyButton().outerHTML
+
+md.renderer.rules.fence = (tokens, idx, options) => {
+  const token = tokens[idx]
+  const info = String(token.info || '').trim()
+  const lang = info.split(/\s+/)[0] || ''
+  const body = (options.highlight
+    ? options.highlight(token.content, lang, '')
+    : '') || escapeHTML(token.content)
+  const cls = lang ? ` class="language-${escapeHTML(lang)}"` : ''
+  return `<div class="md-code"><pre><code${cls}>${body}</code></pre>${COPY_BTN_HTML}</div>\n`
+}
+
+/** 复制按钮的点击处理（命中按钮返回 true），md / json 等预览共用同一份逻辑 */
+function handleCopyClick(ev: MouseEvent): boolean {
+  const btn = (ev.target as HTMLElement | null)?.closest('.md-code-copy') as HTMLElement | null
+  if (!btn) return false
+  ev.preventDefault()
+  const code = btn.closest('.md-code, .json-scroll')?.querySelector('pre')?.textContent ?? ''
+  writeClipboard(code).catch(() => {})
+  btn.textContent = '已复制'
+  btn.classList.add('copied')
+  const prevTimer = (btn as any).__copyTimer as number | undefined
+  if (prevTimer) window.clearTimeout(prevTimer)
+  ;(btn as any).__copyTimer = window.setTimeout(() => {
+    btn.textContent = '复制'
+    btn.classList.remove('copied')
+  }, 1200)
+  return true
+}
+
 /* ---------------- CSV ---------------- */
 
 function detectDelimiter(text: string): string {
@@ -638,7 +680,9 @@ function buildPreview(host: HTMLElement, doc: Doc): void {
     const article = el('article', { class: 'md' })
     article.innerHTML = md.render(doc.text, { basePath: dirname(doc.path) })
     article.addEventListener('click', (ev) => {
-      const a = (ev.target as HTMLElement).closest('a')
+      if (handleCopyClick(ev)) return
+      const hit = ev.target as HTMLElement
+      const a = hit.closest('a')
       if (!a) return
       const href = a.getAttribute('href') || ''
       ev.preventDefault()
@@ -669,7 +713,12 @@ function buildPreview(host: HTMLElement, doc: Doc): void {
     let pretty = doc.text
     try { pretty = JSON.stringify(JSON.parse(doc.text), null, 2) } catch {}
     const pre = el('pre', { class: 'md', style: { fontFamily: 'var(--mono)', fontSize: '12.5px', whiteSpace: 'pre-wrap' } }, pretty)
-    host.append(el('div', { class: 'preview-scroll' }, pre))
+    // 长 JSON 要滚动，工具栏 sticky 在右上角，滚到哪儿都够得着
+    const scroller = el('div', { class: 'preview-scroll json-scroll' },
+      el('div', { class: 'json-bar' }, copyButton()),
+      pre)
+    scroller.addEventListener('click', handleCopyClick)
+    host.append(scroller)
     return
   }
   host.append(renderBinary(doc))
@@ -685,7 +734,7 @@ export function renderEmpty(
   host.innerHTML = ''
   const box = el('div', { class: 'empty' })
   box.append(el('div', { class: 'logo' }, '◆'))
-  box.append(el('h1', {}, 'BetterNoteBook'))
+  box.append(el('h1', {}, 'SuperWorkStation'))
   box.append(el('p', {}, '本地优先的工作台'))
   const hint = el('div', { class: 'hint' })
   hint.append(el('kbd', {}, '⌘O'), el('kbd', {}, '⌘P'), el('kbd', {}, '⌘K'))

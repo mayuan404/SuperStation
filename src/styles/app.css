@@ -23,6 +23,8 @@ body {
   --mono: "SF Mono", ui-monospace, "JetBrains Mono", Menlo, monospace;
   --editor-font-size: 14px;
   --editor-line-height: 1.62;
+  /* markdown 预览的正文栏宽：代码块也跟着这个宽度走，够长的一行不用横向滚动 */
+  --md-max: 1040px;
   --ease: cubic-bezier(.2, .8, .25, 1);
 
   /* 搜索命中：统一用高对比黄色，深色主题也能一眼看到 */
@@ -397,8 +399,8 @@ body {
 /* ---------- markdown preview ---------- */
 
 .md {
-  padding: 30px 44px 80px;
-  max-width: 860px; margin: 0 auto;
+  padding: 30px 40px 80px;
+  max-width: var(--md-max); margin: 0 auto;
   font-size: var(--editor-font-size); line-height: 1.75; color: var(--fg);
   user-select: text; cursor: auto;
 }
@@ -430,6 +432,32 @@ body {
   border-radius: var(--radius); padding: 14px 16px; overflow: auto;
 }
 .md pre code { background: none; padding: 0; font-size: 13.5px; line-height: 1.65; }
+
+/* 代码块容器 + 右上角复制按钮 */
+.md-code { position: relative; margin: 0 0 1em; }
+.md-code pre { margin: 0; }
+.md-code-copy {
+  position: absolute; top: 8px; right: 8px;
+  height: 22px; padding: 0 9px; border-radius: 6px;
+  font: inherit; font-size: 11.5px; line-height: 20px;
+  color: var(--fg-3); background: var(--elev);
+  border: 1px solid var(--line);
+  cursor: pointer; opacity: 0;
+  transition: opacity .12s var(--ease), color .12s, border-color .12s;
+}
+.md-code:hover .md-code-copy,
+.md-code-copy:focus-visible { opacity: 1; }
+.md-code-copy:hover { color: var(--fg); border-color: var(--line-strong); }
+.md-code-copy.copied { opacity: 1; color: var(--accent); border-color: var(--accent); }
+/* JSON 视图：正文会滚动，复制按钮 sticky 在右上角，滚到哪都够得着 */
+.json-scroll { position: relative; }
+.json-bar {
+  position: sticky; top: 0; height: 0; z-index: 3;
+  display: flex; justify-content: flex-end;
+  max-width: var(--md-max); margin: 0 auto;
+}
+.json-bar .md-code-copy { position: static; margin: 10px 8px 0 0; opacity: .55; }
+.json-scroll:hover .json-bar .md-code-copy { opacity: 1; }
 .md table { border-collapse: collapse; width: 100%; font-size: .95em; display: block; overflow: auto; }
 .md th, .md td { border: 1px solid var(--line); padding: 6px 12px; text-align: left; }
 .md th { background: var(--panel); font-weight: 600; }

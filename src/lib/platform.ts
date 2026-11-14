@@ -1,9 +1,15 @@
 // 平台差异：快捷键、路径习惯、文案。macOS 用 ⌘，Windows 用 Ctrl。
 
-// 先用 UA 兜底：即使 app.info 失败，Windows 的 Ctrl 映射也不会丢
-let windows = /Windows/i.test(navigator.userAgent)
+// 先用 UA 兜底：即使 app.info 失败，Windows 的 Ctrl 映射与窗口按钮也不会丢
+const uaWindows = /Windows/i.test(navigator.userAgent)
+let windows = uaWindows
 let homeDir = ''
-let defaultShellPath = '/bin/zsh'
+let defaultShellPath = uaWindows ? 'powershell.exe' : '/bin/zsh'
+
+if (uaWindows && typeof document !== 'undefined') {
+  document.documentElement.classList.add('platform-windows')
+  queueMicrotask(() => localizeShortcutLabels())
+}
 
 export function initPlatform(info: { platform?: string; home?: string; defaultShell?: string }): void {
   windows = info.platform === 'windows'

@@ -89,6 +89,7 @@ internal sealed class MainForm : Form, IMessageFilter
             {
                 AppPaths.Log($"NAV done success={args.IsSuccess} error={args.WebErrorStatus}");
                 _bridge.Emit("ready", new Dictionary<string, object?>());
+                RunStartupScript(core);
             };
 
             core.Navigate($"{BaseUrl}/index.html");
@@ -102,6 +103,38 @@ internal sealed class MainForm : Form, IMessageFilter
                 "SuperWorkStation", MessageBoxButtons.OK, MessageBoxIcon.Error);
             Close();
         }
+    }
+
+    /// <summary>BNB_SCRIPT 指向一段 JS 文件：页面加载完后执行，用于自动化验收（与 macOS 端一致）。</summary>
+    private void RunStartupScript(CoreWebView2 core)
+    {
+        var scriptPath = Environment.GetEnvironmentVariable("BNB_SCRIPT");
+        if (string.IsNullOrWhiteSpace(scriptPath) || !File.Exists(scriptPath)) return;
+        string code;
+        try
+        {
+            code = File.ReadAllText(scriptPath);
+        }
+        catch (Exception ex)
+        {
+            AppPaths.Log("BNB_SCRIPT read fail " + ex.Message);
+            return;
+        }
+
+        // WebView2 的对象只能在 UI 线程用；async 里的 await 会回到 WinForms 同步上下文
+        RunOnUi(async () =>
+        {
+            await Task.Delay(1200);
+            try
+            {
+                var result = await core.ExecuteScriptAsync(code);
+                AppPaths.Log("BNB_SCRIPT ok " + (result.Length > 800 ? result[..800] : result));
+            }
+            catch (Exception ex)
+            {
+                AppPaths.Log("BNB_SCRIPT fail " + ex.Message);
+            }
+        });
     }
 
     // ---- 由网页按钮调用 ----

@@ -44,21 +44,41 @@ internal static class AppPaths
         return Directory.Exists(web) ? web : baseDir;
     }
 
-    /// <summary>把内置 samples 复制到用户目录，只补缺失文件。</summary>
+    private static readonly object SamplesLock = new();
+    private static string? _samplesPath;
+
+    /// <summary>把内置 samples 复制到用户目录，只补缺失文件；并发调用只做一次。</summary>
     public static string EnsureSamples()
     {
-        var src = Path.Combine(AppContext.BaseDirectory, "samples");
-        var dest = Path.Combine(Support, "samples");
-        if (!Directory.Exists(src)) return Directory.Exists(dest) ? PathUtil.ToJs(dest) : "";
-        Directory.CreateDirectory(dest);
-        foreach (var file in Directory.EnumerateFiles(src, "*", SearchOption.AllDirectories))
+        lock (SamplesLock)
         {
-            var rel = Path.GetRelativePath(src, file);
-            var target = Path.Combine(dest, rel);
-            Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-            if (!File.Exists(target)) File.Copy(file, target);
+            if (_samplesPath is not null) return _samplesPath;
+            var src = Path.Combine(AppContext.BaseDirectory, "samples");
+            var dest = Path.Combine(Support, "samples");
+            if (!Directory.Exists(src))
+            {
+                _samplesPath = Directory.Exists(dest) ? PathUtil.ToJs(dest) : "";
+                return _samplesPath;
+            }
+            Directory.CreateDirectory(dest);
+            foreach (var file in Directory.EnumerateFiles(src, "*", SearchOption.AllDirectories))
+            {
+                var rel = Path.GetRelativePath(src, file);
+                var target = Path.Combine(dest, rel);
+                Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+                if (File.Exists(target)) continue;
+                try
+                {
+                    File.Copy(file, target);
+                }
+                catch (IOException)
+                {
+                    // 另一个线程刚好复制过，忽略
+                }
+            }
+            _samplesPath = PathUtil.ToJs(dest);
+            return _samplesPath;
         }
-        return PathUtil.ToJs(dest);
     }
 
     public static void Log(string line)

@@ -12,11 +12,12 @@ using System.Reflection;
 
 [assembly: System.Reflection.AssemblyCompanyAttribute("SuperWorkStation")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
-[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+1b1cea08d2ae528e40f2638fc0f517a1d41a9654")]
+[assembly: System.Reflection.AssemblyDescriptionAttribute("文件 / 笔记 / 终端 / 远程仓库一体的本地工作台")]
+[assembly: System.Reflection.AssemblyFileVersionAttribute("0.3.1.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("0.3.1+a601ec11b1832f64c3501ae12beb55c8dd630de6")]
 [assembly: System.Reflection.AssemblyProductAttribute("SuperWorkStation")]
 [assembly: System.Reflection.AssemblyTitleAttribute("SuperWorkStation")]
-[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
+[assembly: System.Reflection.AssemblyVersionAttribute("0.3.1.0")]
 [assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows10.0.19041.0")]
 [assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows10.0.19041.0")]
 
