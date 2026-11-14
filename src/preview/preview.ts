@@ -23,6 +23,7 @@ import { el, escapeHTML } from '../lib/dom'
 import { icon } from '../lib/icons'
 import { toast, openPalette } from '../ui/overlays'
 import { installLineSelection, clearLineSelection, installCopyToNative, writeClipboard } from '../lib/textselect'
+import { refreshScrollSync } from './scroll-sync'
 import type { Doc } from '../lib/store'
 
 hljs.registerLanguage('javascript', javascript)
@@ -86,6 +87,13 @@ md.core.ruler.push('bnb_heading_ids', (state: any) => {
   }
 })
 
+// 给顶层块记下源文件行号（渲染成 data-line），编辑/预览滚动同步拿它当锚点
+md.core.ruler.push('bnb_block_lines', (state: any) => {
+  for (const t of state.tokens) {
+    if (t.level === 0 && t.nesting >= 0 && t.map) t.attrSet('data-line', String(t.map[0]))
+  }
+})
+
 function normalize(base: string, rel: string): string {
   let p = rel
   let suffix = ''
@@ -145,7 +153,9 @@ md.renderer.rules.fence = (tokens, idx, options) => {
     ? options.highlight(token.content, lang, '')
     : '') || escapeHTML(token.content)
   const cls = lang ? ` class="language-${escapeHTML(lang)}"` : ''
-  return `<div class="md-code"><pre><code${cls}>${body}</code></pre>${COPY_BTN_HTML}</div>\n`
+  const dl = token.attrGet('data-line')
+  const anchor = dl === null || dl === undefined ? '' : ` data-line="${escapeHTML(String(dl))}"`
+  return `<div class="md-code"${anchor}><pre><code${cls}>${body}</code></pre>${COPY_BTN_HTML}</div>\n`
 }
 
 /** 复制按钮的点击处理（命中按钮返回 true），md / json 等预览共用同一份逻辑 */
@@ -672,6 +682,8 @@ export function renderPreview(host: HTMLElement, doc: Doc | null): void {
   const sc = host.querySelector('.preview-scroll') as HTMLElement | null
   if (sc) sc.scrollTop = prevId === doc.id ? prevScroll : 0
   ;(host as any).__docId = doc.id
+  // 预览重建后重新绑定滚动同步（容器是新的，旧锚点也失效了）
+  refreshScrollSync()
 }
 
 function buildPreview(host: HTMLElement, doc: Doc): void {
