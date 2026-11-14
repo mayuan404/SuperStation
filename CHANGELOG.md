@@ -1,5 +1,25 @@
 # 更新记录
 
+## 0.4.0
+
+### 新增
+
+- **Windows x64 版**：全新的 .NET 8 + WebView2 原生外壳（`windows/SuperWorkStation.Win`），复用同一套前端。
+  文件树、编辑与保存、搜索、保存历史、PDF、加密目录、ConPTY 本地终端、
+  SSH 会话与 SFTP 远程工作区、AI 面板在 Windows 上均可使用。
+- Windows 无边框窗口与自绘窗口按钮；⌘ 快捷键自动映射为 Ctrl；界面文案同步替换。
+- GitHub Actions `windows` 工作流：自包含 win-x64 构建，产出可直接分发的 zip。
+
+### 修复
+
+- 侧栏「本地 / 远程」在 Windows 字体下竖排换行：标签禁止换行、按平台收紧间距，
+  侧栏变窄时自动退化为纯图标。
+- Windows 首次启动时示例文件并发复制导致 `app.info` 偶发失败的问题。
+
+### 说明
+
+- macOS 版本次未更新，仍为 0.3.1。
+
 ## 0.3.1
 
 ### 新增
