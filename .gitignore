@@ -4,3 +4,7 @@ build/
 native/AppIcon.iconset/
 .DS_Store
 *.log
+
+# .NET build outputs
+windows/**/bin/
+windows/**/obj/
