@@ -6,7 +6,8 @@ import type { Doc } from '../lib/store'
 import { openSheet, contextMenu, toast, prompt } from './overlays'
 import { remoteRootPath } from './sidebar'
 import { TermSession, type TermProfile } from './terminal'
-import { RemotePanel } from './remote'
+import { RemotePanel, uploadFilesToDir } from './remote'
+import { openGitPanel } from './gitpanel'
 import { ctx } from '../lib/ctx'
 import { basename, dirname } from '../lib/files'
 
@@ -187,6 +188,10 @@ export function remoteRootMenu(path: string, ev: MouseEvent): void {
   contextMenu(ev.clientX, ev.clientY, [
     { label: '刷新', icon: 'refresh', onClick: () => { ctx.sidebar?.invalidate(path); ctx.sidebar?.refresh() } },
     { sep: true },
+    { label: 'Git 面板…', icon: 'git', onClick: () => openGitPanel(path, root.name, {
+      openTerminal: () => openTerminal({ id: root.secretId || 'tmp', name: root.name, kind: 'ssh', host: root.host, port: root.port, user: root.user, remotePath: root.path, hasPassword: !!root.secretId })
+    }) },
+    { label: '获取 git fetch', icon: 'refresh', onClick: () => gitAction(root, 'fetch') },
     { label: '拉取 git pull', icon: 'arrow-left', onClick: () => gitAction(root, 'pull') },
     { label: '推送 git push', icon: 'external', onClick: () => gitAction(root, 'push') },
     { label: '提交全部改动…', icon: 'check', onClick: async () => {
@@ -194,6 +199,11 @@ export function remoteRootMenu(path: string, ev: MouseEvent): void {
       if (msg) gitAction(root, 'commit', msg)
     } },
     { sep: true },
+    { label: '上传文件到此处…', icon: 'upload', onClick: () => { uploadFilesToDir(
+      { host: root.host, port: root.port ?? 22, user: root.user ?? 'root', secretId: root.secretId },
+      root.path,
+      { refresh: () => { ctx.sidebar?.invalidate(path); ctx.sidebar?.refresh() } }
+    ) } },
     { label: '在终端打开此目录', icon: 'terminal', onClick: () => openTerminal({ id: root.secretId || 'tmp', name: root.name, kind: 'ssh', host: root.host, port: root.port, user: root.user, remotePath: root.path, hasPassword: !!root.secretId }) },
     { label: '浏览远端文件', icon: 'folder-open', onClick: () => openRemote({ id: root.secretId || 'tmp', name: root.name, kind: 'ssh', host: root.host, port: root.port, user: root.user, remotePath: root.path, hasPassword: !!root.secretId }) },
     { sep: true },

@@ -680,8 +680,11 @@ final class API {
             return NSNull()
 
         case "app.info":
-            return ["version": "0.3.1", "home": NSHomeDirectory(),
+            return ["version": "0.4.1", "home": NSHomeDirectory(),
                     "os": ProcessInfo.processInfo.operatingSystemVersionString,
+                    // 必须落在 AllowedRoots 白名单里（/tmp 与 Caches/SuperWorkStation），
+                    // 否则 <img> 通过 scheme 读它会被 403
+                    "temp": NSHomeDirectory() + "/Library/Caches/SuperWorkStation/tmp",
                     "initial": devValue("BNB_OPEN"),
                     "initialFile": devValue("BNB_FILE"),
                     "samples": ensureSamples()]
@@ -696,6 +699,13 @@ final class API {
         case "ui.openExternal":
             let u = params["url"] as? String ?? ""
             if let url = URL(string: u) { DispatchQueue.main.async { NSWorkspace.shared.open(url) } }
+            return NSNull()
+        case "ui.openPath":
+            // 用系统默认程序打开本地文件（HEIC/TIFF 这类引擎解不了的格式靠它兜底）
+            let opener = params["path"] as? String ?? ""
+            if !opener.isEmpty {
+                DispatchQueue.main.async { NSWorkspace.shared.open(URL(fileURLWithPath: opener)) }
+            }
             return NSNull()
         case "ui.zoomWindow":
             return onMain {
@@ -849,6 +859,10 @@ final class API {
                                message: params["message"] as? String ?? "update")
                 : [:]
 
+        case "remote.exec":
+            return RemoteFS.exec(params["path"] as? String ?? "",
+                                 cmd: params["cmd"] as? String ?? "",
+                                 timeout: params["timeout"] as? Double ?? 60)
         case "remote.gitStatus":
             return RemoteFS.gitStatus(params["id"] as? String ?? "", path: params["path"] as? String ?? "")
 
@@ -1379,6 +1393,11 @@ final class SchemeHandler: NSObject, WKURLSchemeHandler {
         case "gif": return "image/gif"
         case "webp": return "image/webp"
         case "avif": return "image/avif"
+        case "apng": return "image/apng"
+        case "bmp": return "image/bmp"
+        case "tif", "tiff": return "image/tiff"
+        case "heic": return "image/heic"
+        case "heif": return "image/heif"
         case "ico": return "image/x-icon"
         case "pdf": return "application/pdf"
         case "mp4": return "video/mp4"

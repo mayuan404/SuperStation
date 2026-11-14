@@ -76,6 +76,22 @@ internal static class Shell
         }
     }
 
+    /// <summary>用系统默认程序打开本地文件（HEIC/TIFF 之类浏览器解不了的格式靠它兜底）。</summary>
+    public static void OpenPath(string jsPath)
+    {
+        if (string.IsNullOrWhiteSpace(jsPath)) return;
+        try
+        {
+            var native = PathUtil.FromJs(jsPath);
+            if (!File.Exists(native)) return;
+            Process.Start(new ProcessStartInfo(native) { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            AppPaths.Log("OPEN-PATH fail " + ex.Message);
+        }
+    }
+
     public static void OpenExternal(string url)
     {
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)) return;

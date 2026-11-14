@@ -1,6 +1,7 @@
 import { invoke } from './bridge'
 import { basename, detectKind, extname, isEditable, type DocKind } from './files'
 import { askSave } from '../ui/overlays'
+import { parseRemotePath } from './paths'
 
 export type ViewMode = 'edit' | 'split' | 'preview'
 
@@ -323,6 +324,27 @@ function defaultView(kind: DocKind): ViewMode {
   if (kind === 'md') return 'split'
   if (kind === 'html' || kind === 'csv' || kind === 'image' || kind === 'pdf' || kind === 'video' || kind === 'audio' || kind === 'epub' || kind === 'office') return 'preview'
   return 'edit'
+}
+
+/** 远端连接信息（面板 / 文件树 / 预览都用这一个形状） */
+export interface RemoteConn {
+  host?: string
+  port?: number
+  user?: string
+  secretId?: string
+  mockLocal?: boolean
+}
+
+/** 树里的 `ssh://<rootId>/abs` → 连接信息 + 远端绝对路径 */
+export function remoteTargetFor(treePath: string): { target: RemoteConn; abs: string } | null {
+  const ref = parseRemotePath(treePath)
+  if (!ref) return null
+  const root = (state.remoteRoots ?? []).find((r) => r.id === ref.rootId)
+  if (!root) return null
+  return {
+    target: { host: root.host, port: root.port ?? 22, user: root.user ?? 'root', secretId: root.secretId },
+    abs: ref.abs
+  }
 }
 
 export async function openPath(path: string, opts: { name?: string; encrypted?: boolean; activate?: boolean } = {}): Promise<Doc> {

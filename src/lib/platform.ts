@@ -4,6 +4,7 @@
 const uaWindows = /Windows/i.test(navigator.userAgent)
 let windows = uaWindows
 let homeDir = ''
+let tempRoot = ''
 let defaultShellPath = uaWindows ? 'powershell.exe' : '/bin/zsh'
 
 if (uaWindows && typeof document !== 'undefined') {
@@ -11,9 +12,10 @@ if (uaWindows && typeof document !== 'undefined') {
   queueMicrotask(() => localizeShortcutLabels())
 }
 
-export function initPlatform(info: { platform?: string; home?: string; defaultShell?: string }): void {
+export function initPlatform(info: { platform?: string; home?: string; defaultShell?: string; temp?: string }): void {
   windows = info.platform === 'windows'
   homeDir = info.home || ''
+  tempRoot = info.temp || ''
   defaultShellPath = info.defaultShell || (windows ? 'powershell.exe' : '/bin/zsh')
   if (!windows) return
   document.documentElement.classList.add('platform-windows')
@@ -22,6 +24,8 @@ export function initPlatform(info: { platform?: string; home?: string; defaultSh
 
 export const isWindows = (): boolean => windows
 export const homePath = (): string => homeDir
+/** 原生侧给的临时目录（已加入 file:// 白名单，可直接用于缓存） */
+export const tempDir = (): string => tempRoot || (windows ? 'C:/Windows/Temp' : '/tmp')
 export const defaultShell = (): string => defaultShellPath
 export const revealLabel = (): string => (windows ? '在资源管理器中显示' : '在 Finder 中显示')
 

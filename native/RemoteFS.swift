@@ -163,6 +163,19 @@ enum RemoteFS {
         return ["ok": res.code == 0, "output": String(out.suffix(800))]
     }
 
+    /// 通用远端命令出口（git 面板等）：返回完整 stdout/stderr 与退出码，不做截断
+    static func exec(_ path: String, cmd: String, timeout: TimeInterval) -> [String: Any] {
+        guard let (_, target, abs) = parse(path) else { return ["error": "远端会话未注册"] }
+        let res = Remote.run(target, command: "cd \(Remote.quote(abs)) && \(cmd)", timeout: timeout)
+        let out = String(data: res.out, encoding: .utf8) ?? ""
+        let err = String(data: res.err, encoding: .utf8) ?? ""
+        return [
+            "code": Int(res.code),
+            "stdout": String(out.suffix(200_000)),
+            "stderr": String(err.suffix(40_000))
+        ]
+    }
+
     /// 远端仓库的 git 状态，用于树里的修改标记
     static func gitStatus(_ id: String, path: String) -> [String: Any] {
         guard let (_, target, abs) = parse(path) else { return ["entries": [], "branch": ""] }

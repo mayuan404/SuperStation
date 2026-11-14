@@ -292,7 +292,11 @@ body {
 .tree-row.open > .twist svg { transform: rotate(90deg); }
 .tree-row .ic { width: 14px; height: 14px; flex: 0 0 auto; display: grid; place-items: center; opacity: .95; }
 .tree-row .ic svg { width: 13px; height: 13px; }
-.tree-row .nm { overflow: hidden; text-overflow: ellipsis; font-size: 13px; }
+.tree-row .nm {
+  /* 名字吃掉剩余空间：长分支名被推开而不是把名字挤没 */
+  flex: 1 1 auto; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; font-size: 13px;
+}
 .tree-row.hidden-entry .nm { opacity: .55; }
 .tree-row .badge { margin-left: auto; font-size: 11px; color: var(--fg-3); }
 
@@ -488,6 +492,120 @@ body {
 .hljs-emphasis { font-style: italic; }
 .hljs-strong { font-weight: 700; }
 
+/* ---------- git panel ---------- */
+
+.git-head {
+  display: flex; align-items: center; gap: 8px; padding: 0 0 10px;
+  font-size: 12px; color: var(--fg-2);
+}
+.git-chip { font-size: 11.5px; color: var(--fg-3); }
+.git-branch {
+  height: 24px; padding: 0 6px; border-radius: 6px; max-width: 220px;
+  font-family: var(--mono); font-size: 12px; color: var(--fg);
+  background: var(--panel-2); border: 1px solid var(--line);
+}
+.git-ab { display: flex; gap: 6px; font-family: var(--mono); font-size: 11px; }
+.git-ab .ahead { color: #2a9d52; }
+.git-ab .behind { color: #d18a00; }
+.git-ab .same { color: var(--fg-3); }
+.git-btn {
+  height: 24px; padding: 0 10px; border-radius: 6px; font: inherit; font-size: 12px;
+  border: 1px solid var(--line); background: transparent; color: var(--fg-2);
+}
+.git-btn:hover { background: var(--panel-2); color: var(--fg); }
+
+.git-body { display: flex; gap: 12px; height: 46vh; min-height: 300px; }
+.git-left { flex: 0 0 340px; width: 340px; display: flex; flex-direction: column; min-height: 0; }
+.git-tabs { display: flex; gap: 4px; padding: 0 0 6px; }
+.git-tab {
+  height: 22px; padding: 0 9px; border-radius: 6px; font: inherit; font-size: 11.5px;
+  border: 1px solid transparent; background: transparent; color: var(--fg-3);
+}
+.git-tab:hover { color: var(--fg-2); background: var(--panel-2); }
+.git-tab.active { color: var(--fg); background: var(--panel-2); border-color: var(--line); }
+.git-warn {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
+  padding: 6px 8px; border-radius: 7px; font-size: 11.5px;
+  color: #e5484d; background: rgba(229,72,77,.1); border: 1px solid rgba(229,72,77,.28);
+}
+.git-warn .git-link { margin-left: auto; }
+.git-list-head {
+  display: flex; align-items: center; gap: 6px; padding: 0 2px 6px;
+  font-size: 11.5px; color: var(--fg-3);
+}
+.git-link {
+  padding: 0; border: 0; background: none; font: inherit;
+  font-size: 11.5px; color: var(--accent);
+}
+.git-list {
+  flex: 1; min-height: 0; overflow: auto; padding: 4px;
+  border: 1px solid var(--line); border-radius: 8px; background: var(--panel);
+}
+.git-row {
+  display: flex; align-items: center; gap: 7px;
+  height: 24px; padding: 0 6px; border-radius: 5px; font-size: 12.5px;
+}
+.git-row:hover { background: var(--panel-2); }
+.git-row.active { background: var(--accent-soft); color: var(--accent); }
+.git-row input[type="checkbox"] { margin: 0; flex: 0 0 auto; }
+.git-row .st {
+  flex: 0 0 20px; width: 20px; text-align: center;
+  font-family: var(--mono); font-size: 10.5px; font-weight: 700; color: var(--fg-3);
+}
+.git-row .st[data-code="M"] { color: #d18a00; }
+.git-row .st[data-code="A"] { color: #2a9d52; }
+.git-row .st[data-code="D"] { color: #d24545; }
+.git-row .st[data-code="U"] { color: #e5484d; }
+.git-row .st[data-code="??"] { color: #3b82f6; }
+.git-row .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.git-row .git-when { flex: 0 0 auto; font-size: 10.5px; color: var(--fg-3); }
+.git-row .git-hash { flex: 0 0 auto; font-family: var(--mono); font-size: 11px; color: var(--fg-3); }
+.git-row.hist { gap: 8px; }
+.git-row-act {
+  flex: 0 0 auto; height: 18px; padding: 0 6px; border-radius: 5px; font: inherit;
+  font-size: 10.5px; color: var(--fg-3); border: 1px solid var(--line);
+  background: transparent; opacity: 0;
+}
+.git-row:hover .git-row-act { opacity: 1; }
+.git-row-act:hover { color: #d24545; border-color: rgba(210,69,69,.5); }
+.git-empty { padding: 18px 10px; text-align: center; font-size: 12px; color: var(--fg-3); }
+
+.git-commit { padding-top: 8px; }
+.git-msg {
+  width: 100%; min-height: 46px; padding: 7px 9px; resize: vertical;
+  border: 1px solid var(--line-strong); border-radius: 7px;
+  background: var(--bg); color: var(--fg); font: inherit; font-size: 12.5px; line-height: 1.5;
+  outline: none;
+}
+.git-msg:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.git-commit-bar { display: flex; align-items: center; gap: 8px; padding-top: 6px; }
+.git-last {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 11px; color: var(--fg-3);
+}
+.git-hash { font-family: var(--mono); color: var(--fg-2); }
+
+.git-right { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
+.git-diff-name {
+  padding: 0 2px 6px; font-family: var(--mono); font-size: 11.5px; color: var(--fg-2);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.git-diff {
+  flex: 1; min-height: 0; margin: 0; overflow: auto; padding: 10px 12px;
+  border: 1px solid var(--line); border-radius: 8px; background: var(--panel);
+  font-family: var(--mono); font-size: 12px; line-height: 1.55;
+  white-space: pre; color: var(--fg-2);
+}
+.git-out {
+  margin: 10px 0 6px; max-height: 96px; overflow: auto; padding: 8px 10px;
+  border: 1px solid var(--line); border-radius: 8px; background: var(--panel);
+  font-family: var(--mono); font-size: 11.5px; line-height: 1.5;
+  white-space: pre-wrap; color: var(--fg-2);
+}
+.git-cmd { color: var(--fg-3); }
+.git-err { color: #e5484d; }
+.git-code { color: var(--fg-3); font-size: 10.5px; }
+
 /* ---------- csv ---------- */
 
 .csv-wrap { padding: 16px 20px 60px; }
@@ -520,6 +638,15 @@ body {
   border-radius: 4px; box-shadow: 0 6px 30px rgba(0,0,0,.16);
   transform-origin: center center; transition: transform .05s linear;
 }
+.image-fail {
+  max-width: 460px; display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 22px 24px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel);
+}
+.image-fail-name { font-size: 13px; color: var(--fg); word-break: break-all; text-align: center; }
+.image-fail-sub { font-size: 12px; color: var(--fg-2); }
+.image-fail-hint { font-size: 11.5px; color: var(--fg-3); }
+.md img.md-img-failed { max-height: 40px; opacity: .5; }
+
 .image-info {
   position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
   background: var(--elev); border: 1px solid var(--line); border-radius: 8px;
@@ -587,6 +714,17 @@ button.ghost:hover { background: var(--panel-2); color: var(--fg); }
 .modal input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 .modal .err { color: #e5484d; font-size: 12px; min-height: 16px; padding: 0 18px; }
 .modal .actions { display: flex; justify-content: flex-end; gap: 8px; padding: 10px 18px 16px; }
+.modal .actions + .actions { padding-top: 0; }
+.modal .conflict-name {
+  font-family: var(--mono); font-size: 12.5px; color: var(--fg);
+  background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px;
+  padding: 6px 9px; margin: 4px 0 8px; word-break: break-all;
+}
+.modal .conflict-note { color: var(--fg-3); font-size: 11.5px; }
+.modal .conflict-note code {
+  font-family: var(--mono); font-size: 11.5px; color: var(--fg-2);
+  background: var(--panel-2); border-radius: 4px; padding: 1px 5px;
+}
 
 /* ---------- command palette ---------- */
 
@@ -744,9 +882,13 @@ button.ghost:hover { background: var(--panel-2); color: var(--fg); }
 .tree-row.root-row .nm { opacity: 1; letter-spacing: .1px; }
 .tree-row.root-row .ic { color: var(--accent); }
 .root-close {
-  margin-left: auto; width: 16px; height: 16px; border-radius: 4px;
+  /* 绝对定位：窄侧栏时不再从文字里吃掉 16px + 间距，悬停时才盖在行尾 */
+  position: absolute; right: 3px; top: 50%; transform: translateY(-50%);
+  width: 16px; height: 16px; border-radius: 4px;
   display: grid; place-items: center; opacity: 0; color: var(--fg-3);
+  background: transparent;
 }
+.tree-row:hover .root-close { background: var(--panel-2); }
 .root-close svg { width: 9px; height: 9px; }
 .tree-row:hover .root-close { opacity: 1; }
 .root-close:hover { background: var(--line-strong); color: var(--fg); }
@@ -1197,7 +1339,12 @@ body.dragging-file, body.dragging-file * { cursor: grabbing !important; }
 }
 .term-search-btn:hover { background: var(--panel-2); color: var(--fg); }
 
-.git-branch { margin-left: 6px; font-size: 10px; color: var(--fg-3); font-family: var(--mono); flex: 0 0 auto; }
+.git-branch {
+  margin-left: 6px; font-size: 10px; color: var(--fg-3); font-family: var(--mono);
+  /* 空间不够时先牺牲分支名：高收缩系数 + 可截断，仓库名最后才缩 */
+  flex: 0 1 auto; flex-shrink: 999; min-width: 0; max-width: 48%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 
 .tree-row.multi { background: var(--accent-soft); color: var(--fg); }
 

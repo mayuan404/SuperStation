@@ -17,6 +17,7 @@ import { openQuickCommandManager } from './ui/quickcmd'
 import { PreviewSearch } from './ui/preview-search'
 import { remoteRootPath } from './ui/sidebar'
 import { ctx } from './lib/ctx'
+import { uploadFilesToDir } from './ui/remote'
 
 // WKWebView 在部分系统版本上不会按 CSS 刷新光标（手形只在极少数帧出现）。
 // 这里把每一帧下鼠标所在元素的计算光标值经桥接推给原生，由 AppKit 直接 set，
@@ -375,7 +376,7 @@ function wireResizer(resizer: HTMLElement): void {
     const startX = ev.clientX
     const startW = sidebar.root.getBoundingClientRect().width
     const move = (e: MouseEvent) => {
-      const w = Math.min(460, Math.max(170, startW + e.clientX - startX))
+      const w = Math.min(460, Math.max(150, startW + e.clientX - startX))
       document.documentElement.style.setProperty('--sidebar-w', `${w}px`)
       S.state.settings.sidebarWidth = w
     }
@@ -1580,11 +1581,26 @@ async function moveEntry(src: string, destDir: string): Promise<void> {
   }
 }
 
+/** 从文件树直接往远端目录上传（不用先打开文件走 SFTP） */
+async function uploadToRemote(treePath: string): Promise<void> {
+  const hit = S.remoteTargetFor(treePath)
+  if (!hit) { toast('找不到对应的 SSH 连接，先重新连接一次'); return }
+  await uploadFilesToDir(hit.target, hit.abs, {
+    refresh: () => { sidebar.invalidate(treePath); void sidebar.refresh() }
+  })
+}
+
 function entryMenu(entry: Entry, ev: MouseEvent): void {
   const items: any[] = []
   if (entry.isDir) {
     items.push({ label: '新建文件', icon: 'file-plus', onClick: () => newFile(entry.path) })
     items.push({ label: '新建文件夹', icon: 'folder-plus', onClick: () => newFolder(entry.path) })
+    if (entry.path.startsWith('ssh://')) {
+      items.push({ label: '上传文件到此处…', icon: 'upload', onClick: () => void uploadToRemote(entry.path) })
+    }
+    items.push({ sep: true })
+  } else if (entry.path.startsWith('ssh://')) {
+    items.push({ label: '上传文件到此目录…', icon: 'upload', onClick: () => void uploadToRemote(dirname(entry.path)) })
     items.push({ sep: true })
   }
   items.push({ label: '拷贝', icon: 'copy', sub: '⌘C', onClick: () => { clip = { mode: 'copy', path: entry.path }; toast(`已拷贝 ${entry.displayName}`) } })
@@ -1621,6 +1637,9 @@ function rootMenu(root: string, ev: MouseEvent): void {
   contextMenu(ev.clientX, ev.clientY, [
     { label: '新建文件', icon: 'file-plus', onClick: () => newFile(root) },
     { label: '新建文件夹', icon: 'folder-plus', onClick: () => newFolder(root) },
+    ...(root.startsWith('ssh://')
+      ? [{ label: '上传文件到此处…', icon: 'upload', onClick: () => void uploadToRemote(root) }]
+      : []),
     { sep: true },
     ...(root.startsWith('ssh://') ? [] : [{ label: revealLabel(), icon: 'external', onClick: () => invoke('ui.reveal', { path: root }) }]),
     { label: '拷贝路径（绝对）', icon: 'file', onClick: () => copyText(displayPath(root), '已拷贝绝对路径') },
@@ -1930,12 +1949,12 @@ async function boot(): Promise<void> {
   let initial = ''
   let initialFile = ''
   try {
-    const info = await invoke<{ initial: string; initialFile: string; samples: string; home: string; platform?: string; defaultShell?: string }>('app.info')
+    const info = await invoke<{ initial: string; initialFile: string; samples: string; home: string; platform?: string; defaultShell?: string; temp?: string }>('app.info')
     initial = info.initial || ''
     initialFile = info.initialFile || ''
     samplesPath = info.samples || ''
     homeDir = info.home || ''
-    initPlatform({ platform: info.platform, home: info.home, defaultShell: info.defaultShell })
+    initPlatform({ platform: info.platform, home: info.home, defaultShell: info.defaultShell, temp: info.temp })
   } catch {}
 
   invoke<boolean>('ui.isFullscreen').then((fs) => {

@@ -2,9 +2,161 @@ import { invoke } from '../lib/bridge'
 import { el, clear } from '../lib/dom'
 import { dirname, humanSize } from '../lib/files'
 import { icon } from '../lib/icons'
+import { openSheet, toast } from './overlays'
 import type { TermProfile } from './terminal'
 
 interface REntry { name: string; isDir: boolean; size: number; mode: string }
+
+/** 远端操作需要的连接信息（面板和文件树都归约成这个形状） */
+export interface RemoteTarget {
+  host?: string
+  port?: number
+  user?: string
+  secretId?: string
+  mockLocal?: boolean
+}
+
+type ConflictChoice = 'overwrite' | 'rename' | 'skip' | 'overwriteAll' | 'renameAll' | 'cancel'
+
+export interface UploadSummary {
+  uploaded: number
+  renamed: number
+  skipped: number
+  failed: number
+  cancelled: boolean
+}
+
+/* ---------------- 上传 ---------------- */
+
+function joinRemote(dir: string, name: string): string {
+  const base = dir.replace(/\/+$/, '')
+  if (!base || base === '.') return `/${name}`
+  return `${base}/${name}`
+}
+
+/** Finder 风格的重名后缀：report.pdf → report (1).pdf */
+function withCopySuffix(name: string, n: number): string {
+  const dot = name.lastIndexOf('.')
+  if (dot <= 0) return `${name} (${n})`
+  return `${name.slice(0, dot)} (${n})${name.slice(dot)}`
+}
+
+function freeName(name: string, taken: Set<string>): string {
+  if (!taken.has(name)) return name
+  for (let i = 1; i < 1000; i++) {
+    const next = withCopySuffix(name, i)
+    if (!taken.has(next)) return next
+  }
+  return withCopySuffix(name, Date.now())
+}
+
+async function remoteNames(target: RemoteTarget, dir: string): Promise<Set<string> | null> {
+  const res = await invoke<any>('remote.list', { ...target, path: dir }).catch(() => null)
+  if (!res || res.error || !Array.isArray(res.entries)) return null
+  return new Set((res.entries as REntry[]).map((e) => e.name))
+}
+
+function askConflict(name: string, remaining: number, suggestion: string): Promise<ConflictChoice> {
+  return new Promise((resolve) => {
+    let done = false
+    openSheet('远端已存在同名文件', (body, close) => {
+      const modal = body.parentElement as HTMLElement
+      const pick = (choice: ConflictChoice) => {
+        if (done) return
+        done = true
+        close()
+        resolve(choice)
+      }
+      const btn = (label: string, cls: string, choice: ConflictChoice) => {
+        const b = el('button', { class: cls }, label)
+        b.addEventListener('click', () => pick(choice))
+        return b
+      }
+      body.append(el('div', { class: 'conflict-name' }, name))
+      const note = el('div', { class: 'conflict-note' },
+        remaining > 1 ? `远端已有同名文件；还有 ${remaining - 1} 个文件待上传，可以一并决定。` : '远端已有同名文件。')
+      note.append(el('span', {}, `保留两者会存成 `), el('code', {}, suggestion), el('span', {}, '。'))
+      body.append(note)
+      modal.append(el('div', { class: 'actions' },
+        btn('跳过', 'ghost', 'skip'),
+        btn('覆盖', 'ghost', 'overwrite'),
+        btn('保留两者', 'primary', 'rename')))
+      if (remaining > 1) {
+        modal.append(el('div', { class: 'actions' },
+          btn(`其余 ${remaining - 1} 个全部覆盖`, 'ghost', 'overwriteAll'),
+          btn(`其余 ${remaining - 1} 个全部保留`, 'ghost', 'renameAll')))
+      }
+      modal.append(el('div', { class: 'actions' }, btn('取消上传', 'ghost', 'cancel')))
+    }, 420)
+  })
+}
+
+/**
+ * 选本地文件 → 上传到远端某个目录。
+ * 远端已有同名文件时逐个询问（覆盖 / 保留两者加 (1) / 跳过），也可一次决定余下的。
+ */
+export async function uploadFilesToDir(
+  target: RemoteTarget,
+  dir: string,
+  opts: { refresh?: () => void } = {}
+): Promise<UploadSummary | null> {
+  const files = await invoke<string[]>('ui.pickFiles').catch(() => [])
+  if (!files?.length) return null
+
+  const taken = await remoteNames(target, dir)
+  const summary: UploadSummary = { uploaded: 0, renamed: 0, skipped: 0, failed: 0, cancelled: false }
+  let overwriteAll = false
+  let renameAll = false
+
+  for (let i = 0; i < files.length; i++) {
+    const local = files[i]
+    const original = local.split('/').pop() || local
+    let name = original
+    let action: 'overwrite' | 'rename' | 'skip' = 'overwrite'
+
+    if (taken?.has(original)) {
+      if (overwriteAll) action = 'overwrite'
+      else if (renameAll) action = 'rename'
+      else {
+        const choice = await askConflict(original, files.length - i, freeName(original, taken))
+        if (choice === 'cancel') { summary.cancelled = true; break }
+        if (choice === 'skip') action = 'skip'
+        else if (choice === 'overwriteAll') { overwriteAll = true; action = 'overwrite' }
+        else if (choice === 'renameAll') { renameAll = true; action = 'rename' }
+        else action = choice === 'rename' ? 'rename' : 'overwrite'
+      }
+    }
+
+    if (action === 'skip') { summary.skipped++; continue }
+    if (action === 'rename' && taken) {
+      name = freeName(original, taken)
+      if (name !== original) summary.renamed++
+    }
+
+    const to = joinRemote(dir, name)
+    const res = await invoke<any>('remote.upload', { ...target, local, to })
+      .catch((e) => ({ error: e?.message ?? String(e) }))
+    if (res?.error) {
+      summary.failed++
+      toast(`${name}: ${String(res.error).slice(0, 60)}`, 4000)
+      continue
+    }
+    summary.uploaded++
+    taken?.add(name)
+  }
+
+  const bits: string[] = []
+  if (summary.uploaded) bits.push(`已上传 ${summary.uploaded} 个文件`)
+  if (summary.renamed) bits.push(`${summary.renamed} 个重命名`)
+  if (summary.skipped) bits.push(`跳过 ${summary.skipped}`)
+  if (summary.failed) bits.push(`失败 ${summary.failed}`)
+  if (!bits.length) bits.push(summary.cancelled ? '已取消上传' : '没有文件被上传')
+  toast(bits.join('，'), 3000)
+
+  opts.refresh?.()
+  return summary
+}
+
 
 export interface RemoteDeps {
   openLocal: (path: string, name: string) => void
@@ -65,7 +217,7 @@ export class RemotePanel {
     this.el.style.display = 'flex'
   }
 
-  private target(): any {
+  private target(): RemoteTarget {
     return { host: this.profile.host, port: this.profile.port ?? 22, user: this.profile.user ?? 'root',
              secretId: this.profile.hasPassword ? this.profile.id : undefined,
              mockLocal: this.profile.host === 'mock' }
@@ -164,19 +316,13 @@ export class RemotePanel {
   }
 
   private async upload(dir = this.path): Promise<void> {
-    const files = await invoke<string[]>('ui.pickFiles').catch(() => [])
-    if (!files?.length) return
-    const base = dir.replace(/\/$/, '')
-    for (const f of files) {
-      const name = f.split('/').pop()!
-      const to = base === '/' || base === '.' ? `/${name}` : `${base}/${name}`
-      const res = await invoke<any>('remote.upload', { ...this.target(), local: f, to }).catch((e) => ({ error: e.message }))
-      if (res?.error) this.deps.toast(`${name}: ${String(res.error).slice(0, 60)}`, 4000)
-    }
-    this.deps.toast(`已上传 ${files.length} 个文件`)
-    this.cache.delete(dir.replace(/\/$/, '') || '.')
-    this.cache.delete(this.path)
-    await this.load(this.path, true)
+    await uploadFilesToDir(this.target(), dir, {
+      refresh: () => {
+        this.cache.delete(dir.replace(/\/$/, '') || '.')
+        this.cache.delete(this.path)
+        void this.load(this.path, true)
+      }
+    })
   }
 
   private async downloadTo(name: string): Promise<void> {

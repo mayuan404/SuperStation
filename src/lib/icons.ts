@@ -5,6 +5,8 @@ const P: Record<string, string> = {
   disk: '<rect x="2" y="3.3" width="12" height="9.4" rx="1.6"/><path d="M2.6 9.1h10.8"/><path d="M4.2 6.2h3.6"/><circle cx="11.7" cy="6.2" r=".65" fill="currentColor" stroke="none"/>',
   'folder-open': '<path d="M2 12.6V5.2A1.2 1.2 0 0 1 3.2 4h3l1.5 2h4.1A1.2 1.2 0 0 1 13 7.2v.8"/><path d="M2.6 13.4l1.7-5a1 1 0 0 1 1-.7h8.3a.7.7 0 0 1 .7.9l-1.6 4.8z"/>',
   file: '<path d="M4 2.2h5l3 3v8.6H4z"/><path d="M9 2.2v3h3"/>',
+  git: '<circle cx="4.5" cy="3.6" r="1.5"/><circle cx="4.5" cy="12.4" r="1.5"/><circle cx="11.5" cy="6.4" r="1.5"/><path d="M4.5 5.1v5.8"/><path d="M11.5 7.9c0 2.4-1.6 3.2-4.3 4.1"/>',
+  upload: '<path d="M8 10.4V2.6"/><path d="M4.9 5.7L8 2.6l3.1 3.1"/><path d="M2.6 10.2v2.2a1 1 0 0 0 1 1h8.8a1 1 0 0 0 1-1v-2.2"/>',
   lock: '<rect x="3.4" y="7" width="9.2" height="6.8" rx="1.6"/><path d="M5.6 7V5.1a2.4 2.4 0 0 1 4.8 0V7"/>',
   unlock: '<rect x="3.4" y="7" width="9.2" height="6.8" rx="1.6"/><path d="M5.6 7V5.1a2.4 2.4 0 0 1 4.6-.9"/>',
   search: '<circle cx="7.2" cy="7.2" r="4.2"/><path d="M10.4 10.4L14 14"/>',

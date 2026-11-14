@@ -1,6 +1,6 @@
 export type DocKind = 'text' | 'md' | 'csv' | 'html' | 'json' | 'image' | 'pdf' | 'video' | 'audio' | 'epub' | 'office' | 'browser' | 'terminal' | 'sftp' | 'binary'
 
-const IMAGE = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'bmp', 'ico', 'svg', 'tiff', 'heic'])
+const IMAGE = new Set(['png', 'jpg', 'jpeg', 'jfif', 'gif', 'webp', 'avif', 'bmp', 'ico', 'svg', 'tif', 'tiff', 'heic', 'heif', 'apng'])
 const VIDEO = new Set(['mp4', 'webm', 'mov', 'm4v'])
 const AUDIO = new Set(['mp3', 'wav', 'm4a', 'flac', 'aac', 'ogg'])
 const CSV = new Set(['csv', 'tsv'])

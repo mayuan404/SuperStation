@@ -22,6 +22,24 @@ export function displayPath(p: string): string {
   return parseRemotePath(p)?.abs ?? p
 }
 
+/**
+ * 在远端目录下解析一个相对路径（用于 md 里的相对图片引用）。
+ * 返回 `ssh://<rootId>/<abs>`；外部 URL 或非远端基准返回 null。
+ */
+export function remoteJoin(baseDir: string, rel: string): string | null {
+  const ref = parseRemotePath(baseDir)
+  if (!ref) return null
+  if (/^[a-z]+:/i.test(rel)) return null
+  let clean = rel.split(/[?#]/)[0]
+  try { clean = decodeURIComponent(clean) } catch {}
+  const parts = clean.startsWith('/') ? [] : ref.abs.split('/').filter(Boolean)
+  for (const seg of clean.split('/')) {
+    if (seg === '..') parts.pop()
+    else if (seg !== '.' && seg !== '') parts.push(seg)
+  }
+  return `ssh://${ref.rootId}/${parts.join('/')}`
+}
+
 const withoutTrailingSlash = (s: string): string => s.replace(/\/+$/, '')
 
 /**

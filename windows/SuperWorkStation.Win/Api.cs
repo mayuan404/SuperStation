@@ -73,6 +73,10 @@ internal sealed partial class Api(MainForm form)
                 Shell.OpenExternal(p.Str("url"));
                 return null;
 
+            case "ui.openPath":
+                Shell.OpenPath(p.Str("path"));
+                return null;
+
             case "ui.zoomWindow":
                 _form.RunOnUi(_form.ToggleMaximize);
                 return null;
@@ -336,6 +340,9 @@ internal sealed partial class Api(MainForm form)
             case "remote.git":
                 return RemoteX.Git(p.Str("path"), p.Str("action", "status"), p.Str("message", "update"));
 
+            case "remote.exec":
+                return RemoteX.Exec(p.Str("path"), p.Str("cmd"), p.Int("timeout", 60));
+
             case "remote.gitStatus":
                 return RemoteX.GitStatus(p.Str("path"));
 
@@ -365,6 +372,7 @@ internal sealed partial class Api(MainForm form)
         {
             ["version"] = Program.Version,
             ["home"] = AppPaths.Home,
+            ["temp"] = PathUtil.ToJs(Path.GetTempPath()),
             ["os"] = Environment.OSVersion.VersionString,
             ["initial"] = Environment.GetEnvironmentVariable("BNB_OPEN") ?? "",
             ["initialFile"] = Environment.GetEnvironmentVariable("BNB_FILE") ?? "",

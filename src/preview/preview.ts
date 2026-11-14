@@ -19,11 +19,13 @@ import ini from 'highlight.js/lib/languages/ini'
 import { fileURL, invoke } from '../lib/bridge'
 import { isWindows } from '../lib/platform'
 import { dirname, humanSize } from '../lib/files'
+import { remoteJoin } from '../lib/paths'
 import { el, escapeHTML } from '../lib/dom'
 import { icon } from '../lib/icons'
 import { toast, openPalette } from '../ui/overlays'
 import { installLineSelection, clearLineSelection, installCopyToNative, writeClipboard } from '../lib/textselect'
 import { refreshScrollSync } from './scroll-sync'
+import { remoteImageSrc } from './remote-image'
 import type { Doc } from '../lib/store'
 
 hljs.registerLanguage('javascript', javascript)
@@ -115,11 +117,21 @@ function normalize(base: string, rel: string): string {
   return '/' + parts.join('/') + suffix
 }
 
+/** 1x1 透明占位：远端图片要异步取回，先占住位置避免弹出破图图标 */
+const BLANK_IMG = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
+
 md.renderer.rules.image = (tokens, idx, options, env) => {
   const token = tokens[idx]
   const src = String(token.attrGet('src') || '')
   if (!/^(https?:|data:|blob:|betternotebook:)/i.test(src)) {
-    token.attrSet('src', fileURL(normalize((env as any).basePath || '/', src)))
+    const base = String((env as any).basePath || '/')
+    if (base.startsWith('ssh://')) {
+      // 远端文档：本地 scheme 读不到，先记下相对路径，渲染完再异步换成真实地址
+      token.attrSet('data-remote-src', src)
+      token.attrSet('src', BLANK_IMG)
+    } else {
+      token.attrSet('src', fileURL(normalize(base, src)))
+    }
   }
   token.attrSet('loading', 'lazy')
   token.attrSet('alt', token.content ? escapeHTML(token.content) : '')
@@ -249,8 +261,31 @@ function renderCSV(doc: Doc): HTMLElement {
 
 /* ---------------- image ---------------- */
 
+/** 远端 md 里的相对图片：渲染完再逐个取回，成功就替换占位图 */
+function hydrateRemoteImages(article: HTMLElement, doc: Doc): void {
+  const imgs = Array.from(article.querySelectorAll<HTMLImageElement>('img[data-remote-src]'))
+  for (const img of imgs) {
+    const rel = img.dataset.remoteSrc || ''
+    const treePath = remoteJoin(dirname(doc.path), rel)
+    if (!treePath) continue
+    remoteImageSrc(treePath)
+      .then((url) => {
+        img.src = url
+        img.removeAttribute('data-remote-src')
+      })
+      .catch(() => {
+        img.removeAttribute('data-remote-src')
+        img.classList.add('md-img-failed')
+        img.setAttribute('title', `图片无法加载：${rel}`)
+        img.alt = `图片无法加载：${rel}`
+      })
+  }
+}
+
 function renderImage(doc: Doc): HTMLElement {
-  const img = el('img', { src: fileURL(doc.path), alt: doc.name, draggable: 'false' })
+  const remote = doc.path.startsWith('ssh://')
+  // 本地直接走自定义 scheme；远端先占位，取回后再换 src（见 remote-image.ts）
+  const img = el('img', remote ? { alt: doc.name, draggable: 'false' } : { src: fileURL(doc.path), alt: doc.name, draggable: 'false' })
   const sizeLabel = el('span', {}, '')
   const zoomLabel = el('span', {}, '100%')
   const info = el('div', { class: 'image-info' }, sizeLabel, el('span', {}, '·'), zoomLabel)
@@ -279,6 +314,33 @@ function renderImage(doc: Doc): HTMLElement {
     sizeLabel.textContent = `${img.naturalWidth} × ${img.naturalHeight} px`
   })
 
+  // 解码失败（HEIC/TIFF 这类引擎不支持的格式，或远端读取失败）时给一个明确的落点，
+  // 而不是留一个破图图标让人以为是文件坏了
+  let failed = false
+  const fail = (reason?: string) => {
+    if (failed) return
+    failed = true
+    img.style.display = 'none'
+    info.style.display = 'none'
+    const box = el('div', { class: 'image-fail' })
+    box.append(
+      el('div', { class: 'image-fail-name' }, doc.name),
+      el('div', { class: 'image-fail-sub' }, reason ? `无法预览：${reason}` : '这个格式无法直接预览'),
+      el('div', { class: 'image-fail-hint' },
+        remote ? '可以先「下载到…」再打开' : '可以点下面的按钮用系统默认程序打开')
+    )
+    if (!remote) {
+      const btn = el('button', { class: 'ghost' }, '用默认程序打开')
+      btn.addEventListener('click', () => { invoke('ui.openPath', { path: doc.path }).catch(() => {}) })
+      box.append(btn)
+    }
+    wrap.append(box)
+  }
+
+  if (remote) {
+    remoteImageSrc(doc.path).then((url) => { img.src = url }).catch((e) => fail(String(e?.message ?? e)))
+  }
+
   wrap.addEventListener('wheel', (ev) => {
     ev.preventDefault()
     const r = wrap.getBoundingClientRect()
@@ -306,6 +368,7 @@ function renderImage(doc: Doc): HTMLElement {
     wrap.classList.remove('grabbing')
   })
 
+  img.addEventListener('error', () => { if (img.getAttribute('src')) fail() })
   wrap.addEventListener('dblclick', () => { zoom = 1; panX = 0; panY = 0; apply() })
   wrap.addEventListener('keydown', (ev) => {
     if (ev.key === '+' || ev.key === '=') { setZoom(zoom * 1.25); ev.preventDefault() }
@@ -691,6 +754,7 @@ function buildPreview(host: HTMLElement, doc: Doc): void {
   if (doc.kind === 'md') {
     const article = el('article', { class: 'md' })
     article.innerHTML = md.render(doc.text, { basePath: dirname(doc.path) })
+    if (doc.path.startsWith('ssh://')) hydrateRemoteImages(article, doc)
     article.addEventListener('click', (ev) => {
       if (handleCopyClick(ev)) return
       const hit = ev.target as HTMLElement

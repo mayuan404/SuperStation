@@ -296,6 +296,19 @@ internal static class RemoteX
         };
     }
 
+    /// <summary>通用远端命令出口（git 面板等）：完整 stdout/stderr + 退出码。</summary>
+    public static Dictionary<string, object?> Exec(string path, string cmd, int timeoutSeconds = 60)
+    {
+        if (!RemoteFsX.Parse(path, out _, out var target, out var abs)) return Error("会话未注册");
+        var result = Run(target, $"cd {SshAuth.Quote(abs)} && {cmd}", timeoutSeconds);
+        return new Dictionary<string, object?>
+        {
+            ["code"] = result.ExitCode,
+            ["stdout"] = result.Output,
+            ["stderr"] = result.Error
+        };
+    }
+
     public static Dictionary<string, object?> GitStatus(string path)
     {
         if (!RemoteFsX.Parse(path, out _, out var target, out var abs))
