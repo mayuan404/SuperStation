@@ -8,3 +8,4 @@ native/AppIcon.iconset/
 # .NET build outputs
 windows/**/bin/
 windows/**/obj/
+release/

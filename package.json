@@ -1,7 +1,7 @@
 {
   "name": "betternotebook",
   "private": true,
-  "version": "0.4.0",
+  "version": "0.4.1",
   "type": "module",
   "description": "SuperWorkStation — all-in-one local workstation for macOS (documents, files, terminal, remote repos)",
   "scripts": {
