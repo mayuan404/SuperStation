@@ -148,11 +148,44 @@ export function installLineSelection(root: HTMLElement, opts: { skip?: string } 
   root.addEventListener('mousedown', (ev) => {
     if (ev.button !== 0) return
     const target = ev.target as HTMLElement
-    if (!target || target.closest(skipSel)) return
-    if (!(ev.detail >= 2)) return
+    if (!target) return
     const chars = root.textContent ?? ''
     const pos = charOffsetAt(root, ev.clientX, ev.clientY)
     if (pos < 0) return
+    if (!(ev.detail >= 2)) return
+
+    // 代码块：交还给「选词」语义，并自己接管。
+    // 之前把 pre/code 整块跳过，结果点在代码块右侧留白时要么落回容器的行级选择、
+    // 要么触发 WebKit 的整段选择，都会把行尾空白一起涂色。
+    const inCode = !!target.closest('pre, code, .md-code, .json-scroll')
+    if (inCode) {
+      let start: number, end: number
+      // 点在文字右侧的留白上（光标位置明显超出该行文字末尾）→ 选整行文本
+      const caretRange = rangeFromCharOffsets(root, pos, pos)
+      const caretRect = caretRange ? caretRange.getBoundingClientRect() : null
+      const pastLineEnd = !!caretRect && ev.clientX > caretRect.right + 6
+      if (ev.detail >= 3 || pastLineEnd) {
+        start = lineStartOf(chars, pos)
+        end = lineEndOf(chars, pos)
+      } else {
+        start = pos
+        end = pos
+        while (start > 0 && !/\s/.test(chars[start - 1])) start--
+        while (end < chars.length && !/\s/.test(chars[end])) end++
+      }
+      while (end > start && /\s/.test(chars[end - 1])) end--
+      if (start === end) {
+        // 点在代码块的行尾留白上：没有词可扩，退化成选这一行的文本
+        start = lineStartOf(chars, pos)
+        end = lineEndOf(chars, pos)
+        while (end > start && /\s/.test(chars[end - 1])) end--
+      }
+      ev.preventDefault()
+      applyRange(root, start, end)
+      return
+    }
+
+    if (target.closest(skipSel)) return
     let [start, end] = ev.detail >= 3
       ? paragraphRange(chars, pos)
       : [lineStartOf(chars, pos), lineEndOf(chars, pos)]
