@@ -141,7 +141,9 @@ function selectionText(): string {
  * 双击选整行、三击选段落，并阻止默认的「双击选词」。
  */
 export function installLineSelection(root: HTMLElement, opts: { skip?: string } = {}): void {
-  const skipSel = opts.skip ?? 'a, pre, code, table, .line-hl, .md-code-copy, .json-bar, img, svg, input, textarea'
+  // 代码块整块跳过行级选择：里面的「双击」交还给浏览器（选词），
+  // 否则点在代码块右侧留白会落到 .md-code 容器上，被当成「双击这一行」
+  const skipSel = opts.skip ?? 'a, pre, code, .md-code, .json-scroll, table, .line-hl, .md-code-copy, .json-bar, img, svg, input, textarea'
 
   root.addEventListener('mousedown', (ev) => {
     if (ev.button !== 0) return
@@ -151,9 +153,11 @@ export function installLineSelection(root: HTMLElement, opts: { skip?: string } 
     const chars = root.textContent ?? ''
     const pos = charOffsetAt(root, ev.clientX, ev.clientY)
     if (pos < 0) return
-    const [start, end] = ev.detail >= 3
+    let [start, end] = ev.detail >= 3
       ? paragraphRange(chars, pos)
       : [lineStartOf(chars, pos), lineEndOf(chars, pos)]
+    // 行尾空白不进选区：不少主题下浏览器会把「到行尾」的选区一直涂到容器右边
+    while (end > start && /\s/.test(chars[end - 1])) end--
     ev.preventDefault()
     applyRange(root, start, end)
   }, true)

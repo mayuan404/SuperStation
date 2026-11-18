@@ -12,21 +12,34 @@ import { Prec } from '@codemirror/state'
  * 只用 transactionFilter（作用于「所有」事务，包括手势产生的），
  * 不用 transactionExtender（只作用于 dispatch 产生的事务，且不接受选区）。
  */
+/** 行内文本的选区：去掉行尾空白，且不含换行（含换行会让浏览器把整行空白都涂上选中色） */
+function lineTextSelection(state: EditorState, pos: number): EditorSelection {
+  const doc = state.doc
+  const line = doc.lineAt(pos)
+  let end = line.to
+  while (end > line.from && /\s/.test(doc.sliceString(end - 1, end))) end--
+  return EditorSelection.single(line.from, end)
+}
+
 export function editorLineSelection(): Extension {
   return [
     EditorView.domEventHandlers({
       dblclick: (ev, view) => {
         const pos = view.posAtCoords({ x: ev.clientX, y: ev.clientY }, false)
-        const doc = view.state.doc
         if (typeof pos !== 'number' || pos < 0) return false
-        const line = doc.lineAt(pos)
-        if (ev.detail >= 3) {
-          view.dispatch({ selection: EditorSelection.single(0, doc.length) })
-        } else {
-          view.dispatch({ selection: EditorSelection.single(line.from, line.to) })
-        }
+        view.dispatch({ selection: lineTextSelection(view.state, pos) })
         // 不主动 focus：焦点可能正被预览围标，越界设焦点会让上面的 dispatch 落空
         view.requestMeasure()
+        return true
+      },
+      // 三击：CodeMirror 默认会选中「整行 + 换行」，WebKit 会因此把行尾到容器右边
+      // 的空白也涂成选中色。这里直接吞掉，退回和双击一样的「只选这一行的文本」。
+      mousedown: (ev, view) => {
+        if (ev.button !== 0 || ev.detail < 3) return false
+        const pos = view.posAtCoords({ x: ev.clientX, y: ev.clientY }, false)
+        if (typeof pos !== 'number' || pos < 0) return false
+        view.dispatch({ selection: lineTextSelection(view.state, pos) })
+        ev.preventDefault()
         return true
       }
     }),
