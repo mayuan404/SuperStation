@@ -15,6 +15,11 @@ cp native/Info.plist "$APP/Contents/Info.plist"
 [ -f native/AppIcon.icns ] && cp native/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 if [ -d dist ]; then cp -R dist/. "$APP/Contents/Resources/web/"; fi
 [ -d samples ] && cp -R samples "$APP/Contents/Resources/samples"
+if [ -d native/cosmos ]; then
+  echo "   (bundling cosmos)"
+  mkdir -p "$APP/Contents/Resources/cosmos"
+  cp -R native/cosmos/. "$APP/Contents/Resources/cosmos/"
+fi
 echo "==> compiling swift"
 swiftc -O -swift-version 5 -target arm64-apple-macos13.0 \
   -framework AppKit -framework WebKit -framework CryptoKit \

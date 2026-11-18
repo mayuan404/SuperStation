@@ -147,6 +147,8 @@ function buildShell(): void {
   const viewSwitch = el('div', { class: 'view-switch' })
   ui.viewSwitch = viewSwitch
   const searchBtn = tbBtn('search', '全局搜索  ⌘⇧F', () => globalSearch())
+  const cosmosBtn = tbBtn('star', '星图：把本地工作区看成一个星系  ⌘⇧S', () => void openCosmos())
+  ui.cosmosBtn = cosmosBtn
   const aiBtn = tbBtn('sparkles', 'AI 助手  ⌘⇧A', () => aiPanel.toggle())
   ui.aiBtn = aiBtn
   ui.title = title
@@ -157,6 +159,7 @@ function buildShell(): void {
     title,
     el('div', { class: 'spacer' }),
     viewSwitch,
+    cosmosBtn,
     aiBtn,
     searchBtn
   )
@@ -209,8 +212,9 @@ function buildShell(): void {
   ui.emptyHost = el('div', { class: 'pane', style: { flex: '1', minHeight: '0' } })
   previewSearch = new PreviewSearch(ui.previewPane)
   ui.lockHost = el('div', { class: 'lock', style: { flex: '1', display: 'none' } })
+  ui.cosmosHost = el('div', { class: 'cosmos-host' })
 
-  const panes = el('div', { class: 'panes' }, ui.emptyHost, ui.editorPane, ui.previewPane, ui.lockHost)
+  const panes = el('div', { class: 'panes' }, ui.emptyHost, ui.editorPane, ui.previewPane, ui.lockHost, ui.cosmosHost)
   ui.panes = panes
   ui.statusbar = el('footer', { class: 'statusbar' })
   const workspace = el('section', { class: 'workspace' }, ui.tabbar, panes, ui.statusbar)
@@ -362,6 +366,53 @@ function closeBrowser(): void {
   S.closeBrowserTab()
 }
 
+/* ---------------- 星图 ---------------- */
+
+let cosmosFrame: HTMLIFrameElement | null = null
+let cosmosPort: number | null = null
+let cosmosRootsKey = ''
+
+function cosmosURL(_port: number, roots: string[]): string {
+  // 走 betternotebook:// 而不是 http 才能和主界面同源，WebKit 会拦掉跨 scheme 的子框架
+  return `betternotebook://cosmos/index.html?embed=1&roots=${encodeURIComponent(JSON.stringify(roots))}`
+}
+
+/** 本地工作区目录直接就是星图的星系，不用用户再手动加一遍 */
+function mountCosmos(port: number): void {
+  cosmosPort = port
+  const roots = (S.state.settings.roots ?? []).slice()
+  const key = roots.join('|')
+  if (!cosmosFrame) {
+    cosmosFrame = document.createElement('iframe')
+    cosmosFrame.className = 'cosmos-frame'
+    cosmosFrame.setAttribute('allow', 'fullscreen')
+    ui.cosmosHost.append(cosmosFrame)
+  }
+  if (key === cosmosRootsKey && cosmosFrame.getAttribute('src')) return
+  cosmosRootsKey = key
+  cosmosFrame.src = cosmosURL(port, roots)
+}
+
+async function openCosmos(): Promise<void> {
+  S.openCosmosTab()
+  syncActive()
+  if (cosmosPort) {
+    mountCosmos(cosmosPort)
+    return
+  }
+  try {
+    const r = await invoke<{ port?: number }>('cosmos.ensure')
+    if (r?.port) {
+      mountCosmos(r.port)
+      return
+    }
+  } catch (e) {
+    toast('星图服务启动失败：' + (e as Error).message)
+    return
+  }
+  toast('正在启动星图服务…')
+}
+
 function tbBtn(ic: string, title: string, onClick: () => void): HTMLElement {
   const b = el('button', { class: 'tb-btn', title })
   b.append(icon(ic))
@@ -426,6 +477,7 @@ function syncActive(): void {
   renderTabsBar()
   ui.tabbar.style.display = 'flex'
   const isBrowser = doc?.kind === 'browser'
+  const isCosmos = doc?.kind === 'cosmos'
   const isTerm = doc?.kind === 'terminal'
   const isRemote = doc?.kind === 'sftp'
   if (remoteHost) {
@@ -466,6 +518,23 @@ function syncActive(): void {
     renderTitle()
     return
   }
+  if (isCosmos) {
+    if (browser?.visible()) browser.hide()
+    if (termHost) termHost.style.display = 'none'
+    ui.editorPane.classList.add('hidden')
+    ui.previewPane.classList.add('hidden')
+    ui.emptyHost.classList.add('hidden')
+    ui.lockHost.style.display = 'none'
+    aiPanel.el.style.display = 'none'
+    ui.viewSwitch.style.display = 'none'
+    ui.cosmosHost.classList.add('on')
+    updateTreeActive()
+    renderStatus()
+    renderTitle()
+    return
+  }
+  ui.cosmosHost.classList.remove('on')
+
   if (isBrowser) {
     browser.show()
     ui.editorPane.classList.add('hidden')
@@ -859,6 +928,10 @@ function installKeys(): void {
       stop()
       if (S.activeDoc()?.kind === 'browser') closeBrowser()
       else openBrowser()
+    }
+    else if (k === 's' && ev.shiftKey) {
+      stop()
+      void openCosmos()
     }
     else if (k === '\\') {
       stop()
@@ -1718,6 +1791,12 @@ const saveSession = debounce(() => {
 }, 800)
 
 async function boot(): Promise<void> {
+  onEvent('cosmos.ready', (payload: any) => {
+    const port = payload?.port
+    if (!port) return
+    mountCosmos(port)
+    if (S.activeDoc()?.kind === 'cosmos') syncActive()
+  })
   S.loadSettings()
   applyTheme(S.state.settings.theme, S.state.settings.iconSet)
   buildShell()

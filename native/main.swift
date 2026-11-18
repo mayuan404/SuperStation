@@ -612,6 +612,114 @@ final class Bridge: NSObject, WKScriptMessageHandler {
     }
 }
 
+// MARK: - 星图（Local Cosmos）
+
+/// 按需拉起星图服务：一个 node 子进程，端口交给系统分配。
+/// 工作区目录变化时不用重启，前端把 roots 拼进 iframe 的 URL 即可。
+final class CosmosServer {
+    static let shared = CosmosServer()
+    final class TextBuffer { var value = "" }
+
+    private(set) var process: Process?
+    private(set) var port: Int?
+    private var starting = false
+    private var ready: [(Int) -> Void] = []
+
+    private func nodeBinary() -> String? {
+        for p in ["/opt/homebrew/bin/node", "/usr/local/bin/node", "/usr/bin/node", "/opt/local/bin/node"]
+        where FileManager.default.isExecutableFile(atPath: p) {
+            return p
+        }
+        let probe = Process()
+        probe.executableURL = URL(fileURLWithPath: "/bin/sh")
+        probe.arguments = ["-lc", "command -v node"]
+        let pipe = Pipe()
+        probe.standardOutput = pipe
+        probe.standardError = FileHandle.nullDevice
+        guard (try? probe.run()) != nil else { return nil }
+        probe.waitUntilExit()
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        let path = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return FileManager.default.isExecutableFile(atPath: path) ? path : nil
+    }
+
+    func ensure(_ onReady: @escaping (Int) -> Void) {
+        if let p = port, process?.isRunning == true { onReady(p); return }
+        ready.append(onReady)
+        guard !starting else { return }
+        start()
+    }
+
+    private func start() {
+        guard let node = nodeBinary() else { NSLog("cosmos: 找不到 node"); drain(); return }
+        guard let res = Bundle.main.resourceURL?.appendingPathComponent("cosmos") else { drain(); return }
+        let script = res.appendingPathComponent("server.js")
+        guard FileManager.default.fileExists(atPath: script.path) else {
+            NSLog("cosmos: 缺少 server.js")
+            drain()
+            return
+        }
+
+        starting = true
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: node)
+        p.arguments = [script.path]
+        p.currentDirectoryURL = res
+
+        var env = ProcessInfo.processInfo.environment
+        env["PORT"] = "0"
+        env["PATH"] = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+        let cache = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Caches/SuperWorkStation/cosmos")
+        try? FileManager.default.createDirectory(at: cache, withIntermediateDirectories: true)
+        env["COSMOS_CACHE"] = cache.path
+        p.environment = env
+
+        let out = Pipe()
+        p.standardOutput = out
+        p.standardError = FileHandle.nullDevice
+
+        let buf = TextBuffer()
+        out.fileHandleForReading.readabilityHandler = { [weak self] handle in
+            let data = handle.availableData
+            if data.isEmpty { return }
+            guard let chunk = String(data: data, encoding: .utf8) else { return }
+            buf.value += chunk
+            guard let r = buf.value.range(of: "COSMOS_PORT=") else { return }
+            let digits = buf.value[r.upperBound...].prefix(while: { $0.isNumber })
+            guard let found = Int(digits), found > 0 else { return }
+            out.fileHandleForReading.readabilityHandler = nil
+            self?.port = found
+            self?.starting = false
+            DispatchQueue.main.async { self?.drain() }
+        }
+
+        do {
+            try p.run()
+            process = p
+        } catch {
+            NSLog("cosmos: 启动失败 %@", error.localizedDescription)
+            starting = false
+            drain()
+        }
+    }
+
+    private func drain() {
+        let list = ready
+        ready.removeAll()
+        guard let p = port else { return }
+        for fn in list { fn(p) }
+    }
+
+    func stop() {
+        process?.terminate()
+        process = nil
+        port = nil
+        starting = false
+        ready.removeAll()
+    }
+}
+
 // MARK: - API
 
 final class API {
@@ -648,6 +756,19 @@ final class API {
             return r
         }
         switch method {
+        case "cosmos.ensure":
+            if let p = CosmosServer.shared.port {
+                return ["port": p]
+            }
+            CosmosServer.shared.ensure { [weak self] port in
+                self?.bridge?.emit("cosmos.ready", ["port": port])
+            }
+            return ["port": NSNull(), "starting": true]
+
+        case "cosmos.stop":
+            CosmosServer.shared.stop()
+            return ["ok": true]
+
         case "dev.snapshot":
             let path = params["path"] as? String ?? "/tmp/betternotebook-snap.png"
             DispatchQueue.main.async {
@@ -1284,6 +1405,14 @@ final class SchemeHandler: NSObject, WKURLSchemeHandler {
     func webView(_ webView: WKWebView, start urlSchemeTask: WKURLSchemeTask) {
         guard let url = urlSchemeTask.request.url else { return }
         let host = url.host ?? ""
+
+        // 星图：整个页面由本地 node 服务提供，这里做一次透明代理。
+        // 走同一个自定义 scheme 是为了让它和主页面同源，否则 WebKit 会拦掉 http 子框架。
+        if host == "cosmos" {
+            proxyCosmos(url, urlSchemeTask)
+            return
+        }
+
         var fileURL: URL?
         var logicalExt = ""
         if host == "local" {
@@ -1373,6 +1502,47 @@ final class SchemeHandler: NSObject, WKURLSchemeHandler {
     func webView(_ webView: WKWebView, stop urlSchemeTask: WKURLSchemeTask) {}
 
     /// 预览用：加密文件在内存里解密后返回，未解锁则失败。
+    private func proxyCosmos(_ url: URL, _ task: WKURLSchemeTask) {
+        guard let port = CosmosServer.shared.port,
+              var comps = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+            let resp = HTTPURLResponse(url: url, statusCode: 503, httpVersion: "HTTP/1.1", headerFields: nil)!
+            task.didReceive(resp)
+            task.didFinish()
+            return
+        }
+        comps.scheme = "http"
+        comps.host = "127.0.0.1"
+        comps.port = port
+        guard let target = comps.url else {
+            task.didFailWithError(NSError(domain: "cosmos", code: -1))
+            return
+        }
+        var req = URLRequest(url: target)
+        req.setValue("identity", forHTTPHeaderField: "Accept-Encoding")
+        URLSession.shared.dataTask(with: req) { data, response, error in
+            if let error {
+                task.didFailWithError(error)
+                return
+            }
+            guard let http = response as? HTTPURLResponse else {
+                task.didFailWithError(NSError(domain: "cosmos", code: -2))
+                return
+            }
+            var headers: [String: String] = [:]
+            for (k, v) in http.allHeaderFields {
+                guard let key = k as? String, let val = v as? String else { continue }
+                // URLSession 已经解压过，留着这两个头会让 WebKit 再解一次
+                let lower = key.lowercased()
+                if lower == "content-encoding" || lower == "content-length" { continue }
+                headers[key] = val
+            }
+            let resp = HTTPURLResponse(url: url, statusCode: http.statusCode, httpVersion: "HTTP/1.1", headerFields: headers)!
+            task.didReceive(resp)
+            if let data { task.didReceive(data) }
+            task.didFinish()
+        }.resume()
+    }
+
     static func decrypt(_ path: String) -> Data? {
         if let root = FS.vaultRoot(for: path), let key = VaultStore.shared.key(for: root) {
             guard let raw = try? Data(contentsOf: URL(fileURLWithPath: path)) else { return nil }
@@ -1503,6 +1673,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
 
     func windowWillClose(_ notification: Notification) { NSApp.terminate(nil) }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        CosmosServer.shared.stop()
+    }
 
     private func buildMenu() {
         let main = NSMenu()

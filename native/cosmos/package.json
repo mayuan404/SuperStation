@@ -1,0 +1,5 @@
+{
+  "name": "local-cosmos-service",
+  "private": true,
+  "type": "commonjs"
+}

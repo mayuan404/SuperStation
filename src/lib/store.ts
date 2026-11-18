@@ -251,6 +251,51 @@ export function createUntitled(index = 1): Doc {
 }
 
 export const BROWSER_TAB_ID = 'browser:main'
+export const COSMOS_TAB_ID = 'cosmos:main'
+
+/** 星图也是一个常驻标签页：切走再切回来，相机和选中都还在 */
+export function openCosmosTab(): Doc {
+  const existing = state.docs.find((d) => d.id === COSMOS_TAB_ID)
+  if (existing) {
+    setActive(existing.id)
+    return existing
+  }
+  const doc: Doc = {
+    id: COSMOS_TAB_ID,
+    path: '',
+    name: '星图',
+    ext: '',
+    kind: 'cosmos',
+    editable: false,
+    text: '',
+    saved: '',
+    dirty: false,
+    view: 'preview',
+    encrypted: false,
+    mtime: 0,
+    size: 0,
+    issues: [],
+    checked: false,
+    locked: false
+  }
+  state.docs.push(doc)
+  setActive(doc.id)
+  return doc
+}
+
+export function closeCosmosTab(): void {
+  const idx = state.docs.findIndex((d) => d.id === COSMOS_TAB_ID)
+  if (idx < 0) return
+  const doc = state.docs[idx]
+  if (doc.locked) return
+  state.docs.splice(idx, 1)
+  if (state.activeId === COSMOS_TAB_ID) {
+    const next = state.docs[Math.min(idx, state.docs.length - 1)]
+    state.activeId = next ? next.id : null
+  }
+  emit('docs')
+  emit('active')
+}
 
 /** 文件管理是一个特殊标签页，切走再切回来状态还在 */
 export function openBrowserTab(): Doc {

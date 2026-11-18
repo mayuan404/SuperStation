@@ -1520,3 +1520,23 @@ button:disabled,
 .win-btn:hover { background: rgba(127, 127, 127, 0.18); color: var(--fg); }
 .win-btn.danger:hover { background: #e81123; color: #fff; }
 .platform-windows .win-actions { display: flex; }
+
+/* ---------------- 星图（Local Cosmos 嵌入） ---------------- */
+
+.cosmos-host {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: none;
+}
+
+.cosmos-host.on { display: flex; }
+
+.cosmos-frame {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #07080b;
+  display: block;
+}
