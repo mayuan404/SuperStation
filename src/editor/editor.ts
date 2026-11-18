@@ -10,7 +10,7 @@ import { closeBrackets, closeBracketsKeymap, autocompletion, completionKeymap } 
 import { tags as t } from '@lezer/highlight'
 import { setDiagnostics, lintGutter, linter, type Diagnostic } from '@codemirror/lint'
 import { currentTheme } from '../ui/theme'
-import { editorLineSelection } from './lineselect'
+import { editorLineSelection, activeLineSelectionGuard } from './lineselect'
 import type { Doc } from '../lib/store'
 
 const highlightStyle = HighlightStyle.define([
@@ -43,7 +43,9 @@ function baseTheme(dark: boolean): Extension {
       '.cm-line': { padding: '0 20px 0 10px' },
       '.cm-gutters': { backgroundColor: 'transparent', color: 'var(--fg-3)', border: 'none', paddingLeft: '10px' },
       '.cm-lineNumbers .cm-gutterElement': { padding: '0 10px 0 4px', minWidth: '30px' },
-      '.cm-activeLine': { backgroundColor: 'var(--accent-soft)' },
+      '.cm-activeLine': { backgroundColor: 'var(--active-line)' },
+      // 有选区（尤其双击选整行）时不画当前行底色：否则整行空白都像被选中
+      '&.has-selection .cm-activeLine, &.has-selection .cm-activeLineGutter': { backgroundColor: 'transparent' },
       '.cm-activeLineGutter': { backgroundColor: 'transparent', color: 'var(--fg-2)' },
       '.cm-selectionBackground': { backgroundColor: 'var(--sel) !important' },
       '&.cm-focused .cm-selectionBackground': { backgroundColor: 'var(--sel) !important' },
@@ -164,6 +166,7 @@ export class Editor {
       this.wrapComp.of([]),
       // 双击选整行 + ⌘↑/⌘↓ 以整行为单位跳（落点在本行行尾）
       editorLineSelection(),
+      activeLineSelectionGuard(),
       keymap.of([
         ...closeBracketsKeymap,
         ...defaultKeymap,

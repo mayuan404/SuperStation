@@ -35,6 +35,8 @@ body {
   --search-hit-active-fg: #111111;
   --search-hit-active-border: #b87400;
   --search-hit-selection: rgba(255, 214, 64, .38);
+  /* 当前行底色（中性灰，避免和选区混为一谈） */
+  --active-line: rgba(127, 127, 127, .10);
 }
 
 /* ---------- themes ---------- */

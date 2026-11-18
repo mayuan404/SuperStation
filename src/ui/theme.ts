@@ -253,6 +253,8 @@ export function applyTheme(id: string, iconSet = currentIconSet): void {
   set('--accent-2', dark ? mix(t.accent, '#ffffff', 0.18) : mix(t.accent, '#000000', 0.15))
   set('--accent-soft', alpha(t.accent, dark ? 0.16 : 0.12))
   set('--sel', alpha(t.accent, dark ? 0.24 : 0.18))
+  // 当前行底色刻意用中性灰而不是 accent：和选区同色系时，整行空白会被误看成「被选中」
+  set('--active-line', alpha(t.fg, dark ? 0.055 : 0.045))
   set('--syn-kw', kw)
   set('--syn-str', str)
   set('--syn-num', num)

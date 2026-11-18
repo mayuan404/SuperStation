@@ -1,6 +1,6 @@
 import { EditorState, EditorSelection, Transaction } from '@codemirror/state'
 import type { Extension } from '@codemirror/state'
-import { EditorView, keymap } from '@codemirror/view'
+import { EditorView, keymap, ViewPlugin, type ViewUpdate } from '@codemirror/view'
 import { Prec } from '@codemirror/state'
 
 /**
@@ -103,4 +103,23 @@ export function moveWholeLine(view: EditorView, dir: 1 | -1, extend = false): bo
     scrollIntoView: true
   })
   return true
+}
+
+/**
+ * 让编辑器根节点带上 `has-selection`：
+ * 有选区时把「当前行底色」关掉，双击选整行只高亮真正的文本，右侧空白不再整行反色。
+ */
+export function activeLineSelectionGuard(): Extension {
+  const sync = (view: EditorView) => {
+    const has = view.state.selection.ranges.some((r) => !r.empty)
+    view.dom.classList.toggle('has-selection', has)
+  }
+  return ViewPlugin.fromClass(
+    class {
+      constructor(view: EditorView) { sync(view) }
+      update(u: ViewUpdate) {
+        if (u.selectionSet || u.docChanged) sync(u.view)
+      }
+    }
+  )
 }
