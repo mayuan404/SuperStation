@@ -6,6 +6,8 @@ import { basename, detectKind, dirname, extname, humanSize, isEditable, joinPath
 import { displayPath, pathVariants, relativePath } from './lib/paths'
 import * as S from './lib/store'
 import { checkJSON } from './lib/jsoncheck'
+import { getErrors, subscribeErrors } from './lib/errors'
+import { errorPanel } from './ui/overlays'
 import type { Doc } from './lib/store'
 import { Editor } from './editor/editor'
 import { renderPreview, renderEmpty } from './preview/preview'
@@ -724,6 +726,19 @@ function renderStatus(): void {
     left.append(el('span', {}, '未打开工作区'))
   }
   bar.append(left, el('div', { class: 'spacer' }))
+
+  // 错误计数：点开能回查历史（toast 一闪而过，事后没法查）
+  const errs = getErrors()
+  if (errs.length) {
+    const errBtn = el('button', {
+      class: 'err-count',
+      title: `${errs.length} 条错误记录，点开查看`
+    })
+    errBtn.append(icon('alert'), el('span', {}, String(errs.length)))
+    errBtn.addEventListener('click', () => errorPanel(errBtn))
+    bar.append(errBtn)
+  }
+
   if (doc) {
     if (doc.editable) {
       bar.append(
@@ -1803,6 +1818,8 @@ const saveSession = debounce(() => {
 }, 800)
 
 async function boot(): Promise<void> {
+  subscribeErrors(() => renderStatus())
+
   onEvent('cosmos.ready', (payload: any) => {
     const port = payload?.port
     if (!port) return

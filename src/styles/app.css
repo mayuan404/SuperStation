@@ -1543,3 +1543,57 @@ button:disabled,
   background: #07080b;
   display: block;
 }
+
+/* ---------------- 错误计数与历史面板 ---------------- */
+
+.err-count {
+  display: inline-flex; align-items: center; gap: 4px;
+  height: 20px; padding: 0 7px; margin-left: 6px;
+  border: 0; border-radius: 5px; cursor: pointer;
+  background: color-mix(in srgb, var(--danger, #e5484d) 16%, transparent);
+  color: var(--danger, #e5484d);
+  font: 500 11px var(--sans, inherit);
+  font-variant-numeric: tabular-nums;
+}
+.err-count:hover { background: color-mix(in srgb, var(--danger, #e5484d) 26%, transparent); }
+.err-count svg { width: 11px; height: 11px; }
+
+.error-panel {
+  position: fixed; z-index: 210;
+  width: min(560px, 78vw); max-height: 46vh;
+  display: flex; flex-direction: column;
+  background: var(--elev); border: 1px solid var(--line);
+  border-radius: 10px; box-shadow: var(--shadow);
+  overflow: hidden;
+  animation: pop .16s var(--ease);
+}
+.error-head {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 9px 12px; border-bottom: 1px solid var(--line);
+  font-size: 12px; color: var(--fg);
+}
+.error-list { overflow-y: auto; flex: 1; padding: 4px; }
+.error-row {
+  display: flex; gap: 10px; align-items: baseline;
+  padding: 6px 8px; border-radius: 6px; cursor: pointer;
+}
+.error-row:hover { background: rgba(255, 255, 255, 0.05); }
+.error-time {
+  flex: none; font: 10px var(--mono, ui-monospace); color: var(--fg-dim);
+  font-variant-numeric: tabular-nums;
+}
+.error-msg {
+  font: 12px/1.5 var(--sans, inherit); color: var(--fg);
+  overflow-wrap: anywhere;
+}
+.error-empty { padding: 20px; text-align: center; font-size: 12px; color: var(--fg-dim); }
+.error-foot {
+  display: flex; gap: 8px; justify-content: flex-end;
+  padding: 8px 10px; border-top: 1px solid var(--line);
+}
+.error-btn {
+  height: 24px; padding: 0 10px; border: 0; border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06); color: var(--fg-dim);
+  font: 500 11px var(--sans, inherit); cursor: pointer;
+}
+.error-btn:hover { background: rgba(255, 255, 255, 0.12); color: var(--fg); }

@@ -1,5 +1,6 @@
 import { el, clear } from '../lib/dom'
 import { icon } from '../lib/icons'
+import { recordError, getErrors, clearErrors } from '../lib/errors'
 
 /* ---------------- toast ---------------- */
 
@@ -16,6 +17,7 @@ export function toast(message: string, ms = 2000): void {
   // 报错类多留一会儿；鼠标移上去暂停计时，点一下直接关掉。
   // 以前固定 2 秒，长一点的报错还没看完就没了。
   const isError = /失败|错误|不支持|拒绝|未授权|无法|超时/.test(message)
+  if (isError) recordError(message)
   const hold = isError ? Math.max(ms, 7000) : ms
   let timer = window.setTimeout(dismiss, hold)
 
@@ -301,4 +303,72 @@ export function openPalette(opts: {
   scrim.addEventListener('mousedown', (ev) => { if (ev.target === scrim) close() })
   render()
   setTimeout(() => input.focus(), 20)
+}
+
+
+/* ---------------- 错误历史 ---------------- */
+
+function timeOf(ts: number): string {
+  const d = new Date(ts)
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
+}
+
+/** 状态栏上的错误计数点开的面板：可回查历史失败，点条目复制 */
+export function errorPanel(anchor: HTMLElement): void {
+  const existing = document.getElementById('error-panel')
+  if (existing) {
+    existing.remove()
+    return
+  }
+  const errs = getErrors()
+  const box = el('div', { class: 'error-panel', id: 'error-panel' })
+
+  const head = el('div', { class: 'error-head' })
+  head.append(el('span', {}, '错误记录'), el('span', { class: 'dim' }, `${errs.length} 条`))
+
+  const listBox = el('div', { class: 'error-list' })
+  if (!errs.length) {
+    listBox.append(el('div', { class: 'error-empty' }, '暂无错误'))
+  } else {
+    for (const e of errs) {
+      const row = el('div', { class: 'error-row', title: '点击复制这条错误' })
+      row.append(
+        el('span', { class: 'error-time' }, timeOf(e.at)),
+        el('span', { class: 'error-msg' }, e.message)
+      )
+      row.addEventListener('click', () => {
+        navigator.clipboard?.writeText(e.message).catch(() => {})
+        toast('已复制')
+      })
+      listBox.append(row)
+    }
+  }
+
+  const foot = el('div', { class: 'error-foot' })
+  const clearBtn = el('button', { class: 'error-btn' }, '清空')
+  clearBtn.addEventListener('click', () => {
+    clearErrors()
+    box.remove()
+  })
+  const closeBtn = el('button', { class: 'error-btn' }, '关闭')
+  closeBtn.addEventListener('click', () => box.remove())
+  foot.append(clearBtn, closeBtn)
+
+  box.append(head, listBox, foot)
+  document.body.append(box)
+
+  const r = anchor.getBoundingClientRect()
+  box.style.right = `${Math.max(12, window.innerWidth - r.right)}px`
+  box.style.bottom = `${window.innerHeight - r.top + 8}px`
+
+  setTimeout(() => {
+    const off = (ev: MouseEvent) => {
+      if (!box.contains(ev.target as Node)) {
+        box.remove()
+        document.removeEventListener('mousedown', off)
+      }
+    }
+    document.addEventListener('mousedown', off)
+  }, 0)
 }

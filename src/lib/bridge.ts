@@ -1,5 +1,7 @@
 // RPC bridge to the native shell.
 
+import { recordError } from './errors'
+
 export interface BetterNoteBookReply { id: number; ok: boolean; result: any; error: any }
 
 type Pending = { resolve: (v: any) => void; reject: (e: any) => void }
@@ -18,7 +20,11 @@ const settle = (msg: BetterNoteBookReply) => {
   if (!p) return
   pending.delete(msg.id)
   if (msg.ok) p.resolve(msg.result)
-  else p.reject(new Error(String(msg.error)))
+  else {
+    const err = new Error(String(msg.error))
+    recordError(err.message)
+    p.reject(err)
+  }
 }
 
 ;(window as any).__betternotebookReply = settle

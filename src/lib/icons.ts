@@ -1,5 +1,6 @@
 const P: Record<string, string> = {
   chevron: '<path d="M6 3.5L10.5 8 6 12.5"/>',
+  alert: '<path d="M8 2.5l5.7 10H2.3z"/><path d="M8 6.3v3.1"/><circle cx="8" cy="11.2" r=".65" fill="currentColor" stroke="none"/>',
   star: '<path d="M8 1.9l1.86 3.9 4.14.56-3.02 2.94.74 4.2L8 11.46l-3.72 2.04.74-4.2L2 6.36l4.14-.56z"/>',
   'chevron-down': '<path d="M3.5 6L8 10.5 12.5 6"/>',
   folder: '<path d="M2 5.2A1.2 1.2 0 0 1 3.2 4h3l1.5 2h5.1A1.2 1.2 0 0 1 14 7.2v5.6A1.2 1.2 0 0 1 12.8 14H3.2A1.2 1.2 0 0 1 2 12.8z"/>',
