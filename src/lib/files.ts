@@ -48,7 +48,12 @@ export function extname(name: string): string {
 }
 
 export function joinPath(...parts: string[]): string {
-  return parts.filter(Boolean).join('/').replace(/\/+/g, '/')
+  const joined = parts.filter(Boolean).join('/')
+  // 不能无脑压缩连续斜杠：远程路径是 ssh://host/path，压成 ssh:/host/path
+  // 之后 hasPrefix("ssh://") 就失败了，会被当成普通本地路径处理。
+  const scheme = /^([a-z][a-z0-9+.-]*:\/\/)([\s\S]*)$/i.exec(joined)
+  if (scheme) return scheme[1] + scheme[2].replace(/\/+/g, '/')
+  return joined.replace(/\/+/g, '/')
 }
 
 export function humanSize(n: number): string {

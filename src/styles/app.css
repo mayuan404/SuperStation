@@ -769,6 +769,9 @@ button.ghost:hover { background: var(--panel-2); color: var(--fg); }
   background: var(--elev); border: 1px solid var(--line); box-shadow: var(--shadow);
   border-radius: 9px; padding: 8px 14px; font-size: 13px; color: var(--fg);
   animation: pop .18s var(--ease);
+  /* 可悬停暂停 / 点击关闭 */
+  pointer-events: auto; cursor: default;
+  max-width: min(560px, 80vw); overflow-wrap: anywhere; line-height: 1.5;
 }
 
 /* ---------- context menu ---------- */

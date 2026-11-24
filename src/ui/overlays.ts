@@ -12,11 +12,25 @@ export function toast(message: string, ms = 2000): void {
   }
   const node = el('div', { class: 'toast' }, message)
   toastHost.append(node)
-  setTimeout(() => {
+
+  // 报错类多留一会儿；鼠标移上去暂停计时，点一下直接关掉。
+  // 以前固定 2 秒，长一点的报错还没看完就没了。
+  const isError = /失败|错误|不支持|拒绝|未授权|无法|超时/.test(message)
+  const hold = isError ? Math.max(ms, 7000) : ms
+  let timer = window.setTimeout(dismiss, hold)
+
+  function dismiss(): void {
+    window.clearTimeout(timer)
     node.style.opacity = '0'
     node.style.transition = 'opacity .2s'
-    setTimeout(() => node.remove(), 220)
-  }, ms)
+    window.setTimeout(() => node.remove(), 220)
+  }
+
+  node.addEventListener('mouseenter', () => window.clearTimeout(timer))
+  node.addEventListener('mouseleave', () => {
+    timer = window.setTimeout(dismiss, 2500)
+  })
+  node.addEventListener('click', dismiss)
 }
 
 /* ---------------- modal ---------------- */
