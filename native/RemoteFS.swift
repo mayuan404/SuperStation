@@ -107,6 +107,23 @@ enum RemoteFS {
             if let err = res["error"] as? String { return ["error": err] }
             return ["mtime": 0]
 
+        case "fs.create":
+            // 前端「新建文件」走的就是这个（本地对应 FileManager 建空文件）。
+            // 以前远程没实现，路径掉进本地 FS，被 AllowedRoots 拦下报「未授权写入」。
+            let text = params["text"] as? String ?? ""
+            let tmp = NSTemporaryDirectory() + "ws-remote-create-\(UUID().uuidString)"
+            try? Data(text.utf8).write(to: URL(fileURLWithPath: tmp))
+            let res = Remote.upload(target, localPath: tmp, to: abs)
+            try? FileManager.default.removeItem(atPath: tmp)
+            if let err = res["error"] as? String { return ["error": err] }
+            return NSNull()
+
+        case "fs.trash":
+            // 远程没有废纸篓：删除即删除（不可恢复）。语义差异由前端提示。
+            let res = Remote.remove(target, path: abs)
+            if let err = res["error"] as? String { return ["error": err] }
+            return NSNull()
+
         case "fs.mkdir":
             let res = Remote.mkdir(target, path: abs)
             if let err = res["error"] as? String { return ["error": err] }

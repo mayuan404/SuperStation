@@ -343,7 +343,7 @@ setClipboardWriter((text) => { invoke('ui.copy', { text }).catch(() => {}) })
 
 function multiMenu(paths: string[], ev: MouseEvent): void {
   contextMenu(ev.clientX, ev.clientY, [
-    { label: `移到废纸篓（${paths.length} 项）`, icon: 'trash', danger: true, onClick: async () => {
+    { label: `${paths[0]?.startsWith('ssh://') ? '永久删除' : '移到废纸篓'}（${paths.length} 项）`, icon: 'trash', danger: true, onClick: async () => {
       let n = 0
       for (const p of paths) {
         try { await invoke('fs.trash', { path: p }); n++ } catch {}
@@ -1477,7 +1477,14 @@ async function renameEntry(entry: Entry): Promise<void> {
 }
 
 async function deleteEntry(entry: Entry): Promise<void> {
-  const ok = await confirmDialog('移到废纸篓？', `「${entry.displayName}」将被移入废纸篓。`, true)
+  const remote = entry.path.startsWith('ssh://')
+  const ok = await confirmDialog(
+    remote ? '永久删除？' : '移到废纸篓？',
+    remote
+      ? `「${entry.displayName}」会从远程主机上直接删除，没有回收站，无法恢复。`
+      : `「${entry.displayName}」将被移入废纸篓。`,
+    true
+  )
   if (!ok) return
   try {
     await invoke('fs.trash', { path: entry.path })
@@ -1693,7 +1700,12 @@ function entryMenu(entry: Entry, ev: MouseEvent): void {
   items.push(...pathMenuItems(entry.path))
   items.push({ sep: true })
   items.push({ label: '重命名…', icon: 'pencil', onClick: () => renameEntry(entry) })
-  items.push({ label: '移到废纸篓', icon: 'trash', danger: true, onClick: () => deleteEntry(entry) })
+  items.push({
+    label: entry.path.startsWith('ssh://') ? '永久删除' : '移到废纸篓',
+    icon: 'trash',
+    danger: true,
+    onClick: () => deleteEntry(entry)
+  })
   items.push({ sep: true })
   if (entry.isDir) {
     if (entry.vault) {

@@ -749,11 +749,20 @@ final class API {
 
     func handle(method: String, params: [String: Any]) throws -> Any {
         // 远端路径（ssh://…）走另一套实现，网页层无感
-        if method.hasPrefix("fs."), let r = RemoteFS.handle(method, params) {
-            if let e = r as? [String: Any], let msg = e["error"] as? String {
-                throw err(msg)
+        if method.hasPrefix("fs.") {
+            if let r = RemoteFS.handle(method, params) {
+                if let e = r as? [String: Any], let msg = e["error"] as? String {
+                    throw err(msg)
+                }
+                return r
             }
-            return r
+            // 远程路径但远程侧没实现这个动作时，绝不能掉进本地 FS——
+            // 那会把 "ssh://host/path" 当成相对路径去操本地磁盘，
+            // 最后以「该位置未授权写入」这种误导性的错误暴露出来。
+            let raw = (params["path"] as? String) ?? (params["from"] as? String) ?? ""
+            if raw.hasPrefix("ssh://") {
+                throw err("远程目录还不支持这个操作：\(method)")
+            }
         }
         switch method {
         case "cosmos.ensure":
