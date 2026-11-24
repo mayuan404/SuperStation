@@ -128,6 +128,39 @@ let browser: FileBrowser
 let previewSearch: PreviewSearch
 const terminals = new Map<string, TermSession>()
 const ptyCaptures = new Map<string, string>()
+// 所有 PTY 的最近输出（含交互式终端），SSH 退出码 255 时用来判断失败原因
+const ptyRecent = new Map<string, string>()
+const PTY_RECENT_MAX = 6000
+
+function stripAnsi(s: string): string {
+  return s.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, '').replace(/\x1b\][^\x07]*\x07/g, '')
+}
+
+type SshFailure = { kind: 'network' | 'auth' | 'hostkey' | 'config' | 'unknown'; text: string }
+
+/** 按 ssh 的真实报错分类；不要把所有 255 都当成「密码不对」 */
+function classifySshFailure(raw: string): SshFailure {
+  const s = stripAnsi(raw)
+  if (/Connection refused/i.test(s)) {
+    return { kind: 'network', text: '目标拒绝连接：端口没有 SSH 服务，或被防火墙/安全策略拒绝' }
+  }
+  if (/Connection timed out|Operation timed out|No route to host|Network is unreachable/i.test(s)) {
+    return { kind: 'network', text: '网络不可达或连接超时' }
+  }
+  if (/Host key verification failed|REMOTE HOST IDENTIFICATION HAS CHANGED/i.test(s)) {
+    return { kind: 'hostkey', text: '主机密钥校验失败（known_hosts 变了）' }
+  }
+  if (/Too many authentication failures/i.test(s)) {
+    return { kind: 'auth', text: '认证尝试次数过多（钥匙串里试了太多 key）' }
+  }
+  if (/Permission denied|Authentication failed/i.test(s)) {
+    return { kind: 'auth', text: '认证失败：密码或密钥不正确' }
+  }
+  if (/Could not resolve hostname/i.test(s)) {
+    return { kind: 'config', text: '主机名解析失败' }
+  }
+  return { kind: 'unknown', text: '连接失败' }
+}
 let termHost: HTMLElement
 let remoteHost: HTMLElement
 const remoteBacking = new Map<string, { profile: TermProfile; remote: string }>()
@@ -1949,6 +1982,12 @@ async function boot(): Promise<void> {
       const txt = new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0)))
       ptyCaptures.set(payload.id, (ptyCaptures.get(payload.id) ?? '') + txt)
     }
+    if (payload?.id && payload.data) {
+      const bin = atob(payload.data)
+      const txt = new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0)))
+      const prev = (ptyRecent.get(payload.id) ?? '') + txt
+      ptyRecent.set(payload.id, prev.length > PTY_RECENT_MAX ? prev.slice(-PTY_RECENT_MAX) : prev)
+    }
     const s = [...terminals.values()].find((t) => t.ptyId === payload?.id)
     if (!s || !payload?.data) return
     const bin = atob(payload.data)
@@ -1960,20 +1999,25 @@ async function boot(): Promise<void> {
     const s = [...terminals.values()].find((t) => t.ptyId === payload?.id)
     if (!s) return
     const code = Number(payload?.code ?? 0)
+    const sshOut = ptyRecent.get(payload?.id) ?? ''
+    ptyRecent.delete(payload?.id)
+    const reason = code === 255 ? classifySshFailure(sshOut) : null
     s.markExited(code)
     invoke('app.log', {
-      line: `PTY EXIT kind=${s.profile.kind} name=${s.profile.name} code=${code} usedSecret=${s.usedSecret} retried=${s.retried}`
+      line: `PTY EXIT kind=${s.profile.kind} name=${s.profile.name} code=${code} usedSecret=${s.usedSecret} retried=${s.retried} reason=${reason?.kind ?? '-'}`
     }).catch(() => {})
 
     // SSH 失败时绝不能静默变成本地终端：保留标签并给出重连
     if (s.profile.kind === 'ssh') {
-      if (code === 255 && s.usedSecret && !s.retried) {
+      // 只有真的认证失败才提示重输密码；Connection refused / 超时 / 主机密钥都不该弹这个
+      if (code === 255 && reason?.kind === 'auth' && s.usedSecret && !s.retried) {
         toast('保存的密码不可用，请手动输入')
         s.restart(false).catch(() => {})
         return
       }
-      s.markConnectionFailed(code)
-      toast(`SSH 连接失败：${s.profile.user || 'root'}@${s.profile.host}:${s.profile.port || 22}（退出码 ${code}），检查网络/VPN 后点「重连」`, 6000)
+      s.markConnectionFailed(code, reason?.text)
+      const why = reason?.text ?? '检查网络/VPN 后点「重连」'
+      toast(`SSH 连接失败：${s.profile.user || 'root'}@${s.profile.host}:${s.profile.port || 22}（退出码 ${code}）— ${why}`, 6000)
       return
     }
 

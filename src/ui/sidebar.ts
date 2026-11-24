@@ -76,6 +76,7 @@ export class Sidebar {
   private selAnchor = ''
   private selPane: HTMLElement | null = null
   private forceNext = false
+  private lastExpKey = ''
   private remoteBusy = false
 
   /** 某一分区里当前可见（已展开）的目录 */
@@ -433,6 +434,14 @@ export class Sidebar {
   }
 
   private async refreshInner(): Promise<void> {
+    // 诊断：展开集合一旦变化就记一行，用来定位「删除后整棵树突然全折叠」
+    const expKey = Array.from(state.expanded).sort().join('|')
+    if (expKey !== this.lastExpKey) {
+      this.lastExpKey = expKey
+      invoke('app.log', {
+        line: `TREE expanded=${state.expanded.size} :: ${expKey.slice(0, 240)}`
+      }).catch(() => {})
+    }
     const token = ++this.token
     this.syncHead()
     this.renderFoot()

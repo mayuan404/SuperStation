@@ -411,14 +411,15 @@ export class TermSession {
   }
 
   /** SSH 连接失败：保留会话并显示重连，不再悄悄变成本地终端。 */
-  markConnectionFailed(code: number): void {
+  markConnectionFailed(code: number, reason?: string): void {
     this.connected = false
     this.setLive(false)
     this.statusEl.textContent = '连接失败'
     this.statusEl.classList.remove('pending', 'ok')
     this.statusEl.classList.add('bad')
     if (this.retryBtn) this.retryBtn.hidden = false
-    this.term.write(`\r\n\x1b[31m[SSH 连接失败，退出码 ${code}。检查网络/VPN 后点「重连」]\x1b[0m\r\n`)
+    const detail = reason ? `${reason}（退出码 ${code}）` : `退出码 ${code}`
+    this.term.write(`\r\n\x1b[31m[SSH 连接失败：${detail}。检查后点「重连」]\x1b[0m\r\n`)
   }
 
   refit(): void {
