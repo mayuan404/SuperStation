@@ -4,7 +4,7 @@ import { recordError } from './errors'
 
 export interface BetterNoteBookReply { id: number; ok: boolean; result: any; error: any }
 
-type Pending = { resolve: (v: any) => void; reject: (e: any) => void }
+type Pending = { resolve: (v: any) => void; reject: (e: any) => void; silent?: boolean }
 
 const pending = new Map<number, Pending>()
 let seq = 0
@@ -22,7 +22,8 @@ const settle = (msg: BetterNoteBookReply) => {
   if (msg.ok) p.resolve(msg.result)
   else {
     const err = new Error(String(msg.error))
-    recordError(err.message)
+    // 树在轮询一个已被删掉的目录时，ENOENT 是常态而不是故障：调用方可以要求静默
+    if (!p.silent) recordError(err.message)
     p.reject(err)
   }
 }
@@ -46,11 +47,12 @@ if (webview2) {
   })
 }
 
-export function invoke<T = any>(method: string, params: Record<string, any> = {}): Promise<T> {
+export function invoke<T = any>(method: string, params: Record<string, any> = {},
+                                opts: { silent?: boolean } = {}): Promise<T> {
   if (!hasNative) return Promise.reject(new Error('未在 SuperWorkStation 应用中运行'))
   return new Promise<T>((resolve, reject) => {
     const id = ++seq
-    pending.set(id, { resolve, reject })
+    pending.set(id, { resolve, reject, silent: opts.silent })
     if (wkHandler) wkHandler.postMessage({ id, method, params })
     else webview2.postMessage({ id, method, params })
   })

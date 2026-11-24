@@ -255,6 +255,10 @@ export class TermSession {
 
   usedSecret = false
   retried = false
+  /** 连续连接失败次数：用来做重连退避，避免网络断时疯狂重试 */
+  private failStreak = 0
+  private retryUnlockAt = 0
+  private retryTimer = 0
 
   restarted = false
 
@@ -271,6 +275,11 @@ export class TermSession {
   }
 
   async restart(useSecret: boolean): Promise<void> {
+    const wait = this.retryUnlockAt - Date.now()
+    if (wait > 0) {
+      this.term.write(`\r\n\x1b[2m[连续失败，${Math.ceil(wait / 1000)} 秒后再试]\x1b[0m\r\n`)
+      return
+    }
     this.retried = true
     this.connected = false
     this.probe = ''
@@ -335,6 +344,10 @@ export class TermSession {
         rows: this.term.rows
       })
       this.ptyId = res.id
+      // 连上了：清零失败计数与退避
+      this.failStreak = 0
+      this.retryUnlockAt = 0
+      if (this.retryTimer) { clearInterval(this.retryTimer); this.retryTimer = 0 }
       this.term.reset()
       // 建会话时可能还没量到真实尺寸，这里再对齐一次，否则 vim 只画一小块
       this.refit()
@@ -417,9 +430,30 @@ export class TermSession {
     this.statusEl.textContent = '连接失败'
     this.statusEl.classList.remove('pending', 'ok')
     this.statusEl.classList.add('bad')
-    if (this.retryBtn) this.retryBtn.hidden = false
     const detail = reason ? `${reason}（退出码 ${code}）` : `退出码 ${code}`
     this.term.write(`\r\n\x1b[31m[SSH 连接失败：${detail}。检查后点「重连」]\x1b[0m\r\n`)
+
+    // 指数退避：1、2、4、8、16、30 秒；断网时别让多个标签一起疯狂重连
+    this.failStreak = Math.min(this.failStreak + 1, 6)
+    const delay = Math.min(30, Math.pow(2, this.failStreak - 1))
+    this.retryUnlockAt = Date.now() + delay * 1000
+    const btn = this.retryBtn
+    if (!btn) return
+    btn.hidden = false
+    btn.disabled = true
+    const tick = () => {
+      const left = Math.ceil((this.retryUnlockAt - Date.now()) / 1000)
+      if (left > 0) {
+        btn.textContent = `重连（${left}s）`
+      } else {
+        btn.textContent = '重连'
+        btn.disabled = false
+        if (this.retryTimer) { clearInterval(this.retryTimer); this.retryTimer = 0 }
+      }
+    }
+    tick()
+    if (this.retryTimer) clearInterval(this.retryTimer)
+    this.retryTimer = window.setInterval(tick, 500)
   }
 
   refit(): void {

@@ -65,6 +65,9 @@ export class Sidebar {
   private cache = new Map<string, Entry[]>()
   /** 读取失败的目录，用来画一行错误提示而不是静默当空目录 */
   private failedDirs = new Set<string>()
+  /** 目录读取失败后的冷却时间：这期间不再发起 fs.list，也不重复记错误 */
+  private failedAt = new Map<string, number>()
+  private static readonly FAIL_COOLDOWN = 60_000
   /** 路径 → 条目，键盘回车时要用完整 Entry 去打开 */
   private byPath = new Map<string, Entry>()
   private remoteStatus = new Map<string, string>()
@@ -395,6 +398,11 @@ export class Sidebar {
   }
 
   private async load(dir: string): Promise<Entry[]> {
+    const failedTs = this.failedAt.get(dir)
+    if (failedTs && Date.now() - failedTs < Sidebar.FAIL_COOLDOWN) {
+      this.failedDirs.add(dir)
+      return []
+    }
     const cached = this.cache.get(dir)
     if (cached) {
       const sig = cached.map((e) => e.path + ':' + e.mtime + ':' + e.size).join('|')
@@ -402,14 +410,20 @@ export class Sidebar {
       return cached
     }
     try {
-      const entries = await invoke<Entry[]>('fs.list', { path: dir })
+      // 静默：目录可能刚被远端删掉，ENOENT 不该进「错误记录」
+      const entries = await invoke<Entry[]>('fs.list', { path: dir }, { silent: true })
       const sig = entries.map((e) => e.path + ':' + e.mtime + ':' + e.size).join('|')
       if (this.entrySig.get(dir) !== sig) { this.entrySig.set(dir, sig); this.dirty = true }
       this.cache.set(dir, entries)
       this.failedDirs.delete(dir)
+      this.failedAt.delete(dir)
       return entries
     } catch {
       this.failedDirs.add(dir)
+      this.failedAt.set(dir, Date.now())
+      // 远端目录已经不存在：把它从「展开集合」里摘掉，下一轮不再尝试
+      if (state.expanded.has(dir)) state.expanded.delete(dir)
+      this.cache.delete(dir)
       return []
     }
   }
