@@ -70,7 +70,8 @@ enum RemoteFS {
                     "path": join(id, childAbs),
                     "isDir": isDir,
                     "size": e["size"] as? Int ?? 0,
-                    "mtime": 0,
+                    // 远端 ls --time-style=+%s 拿到的真实修改时间
+                    "mtime": e["mtime"] as? Double ?? 0,
                     "ext": ext,
                     "hidden": name.hasPrefix("."),
                     "encrypted": false,

@@ -170,16 +170,20 @@ enum Remote {
             let first = line.first!
             guard first == "-" || first == "d" || first == "l" else { continue }
             let parts = line.split(separator: " ", omittingEmptySubsequences: true).map(String.init)
-            guard parts.count >= 9 else { continue }
-            guard parts[0].count >= 10 else { continue }
+            // ls -la 最少 6 个定宽字段（权限/链接/属主/属组/大小/时间）+ 名称；
+            // 用 --time-style=+%s 时时间是一个 epoch 字段，名称从第 7 段开始。
+            guard parts.count >= 7, parts[0].count >= 10 else { continue }
             let perms = parts[0]
             let size = Int(parts[4]) ?? 0
-            // 带 --time-style=+%s 时是 epoch 秒；否则是老格式（月 日 时间/年份）
             var nameStart = 8
             var mtime: Double = 0
-            if parts.count >= 8, let epoch = Double(parts[5]), epoch > 0, epoch < 4_102_444_800 {
-                nameStart = 7
+            if let epoch = Double(parts[5]), epoch > 0, epoch < 4_102_444_800 {
+                // epoch 时间样式：权限 链接 属主 属组 大小 epoch 名称…（名称是第 7 段，下标 6）
+                nameStart = 6
                 mtime = epoch
+            } else {
+                // 老格式：权限 链接 属主 属组 大小 月 日 时间/年份 名称…（至少 9 段）
+                guard parts.count >= 9 else { continue }
             }
             guard parts.count > nameStart else { continue }
             var name = parts[nameStart...].joined(separator: " ")
