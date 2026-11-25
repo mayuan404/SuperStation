@@ -128,6 +128,8 @@ export class Editor {
   private wrapComp = new Compartment()
   private themeComp = new Compartment()
   private states = new Map<string, EditorState>()
+  /** 每个文档的滚动位置：setState 会把滚动归零，切回标签时需要手动恢复 */
+  private scrollMemo = new Map<string, number>()
   private langToken = 0
   onChange: (text: string) => void = () => {}
   onCursor: (info: { line: number; col: number; selChars: number; selLines: number; lines: number }) => void = () => {}
@@ -205,6 +207,7 @@ export class Editor {
   setDoc(doc: Doc | null): void {
     if (this.doc && this.doc.id !== doc?.id) {
       this.states.set(this.doc.id, this.view.state)
+      this.scrollMemo.set(this.doc.id, this.view.scrollDOM.scrollTop)
     }
     this.doc = doc
     if (!doc) {
@@ -219,6 +222,16 @@ export class Editor {
       this.view.setState(st)
       this.states.set(doc.id, st)
     }
+    // setState 后滚动被重置：等一帧布局完成再恢复上次的位置
+    const target = this.scrollMemo.get(doc.id) ?? 0
+    requestAnimationFrame(() => {
+      if (this.doc?.id !== doc.id) return
+      this.view.scrollDOM.scrollTop = target
+      this.view.requestMeasure()
+      requestAnimationFrame(() => {
+        if (this.doc?.id === doc.id) this.view.scrollDOM.scrollTop = target
+      })
+    })
     this.loadLanguage(doc)
   }
 

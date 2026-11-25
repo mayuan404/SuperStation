@@ -729,9 +729,13 @@ function scrollTo(article: HTMLElement, target: Element): void {
   scroller.scrollTo({ top: Math.max(0, top), behavior: 'smooth' })
 }
 
+// 预览滚动位置：切到别的 tab 再回来时，要回到原来的位置而不是顶部
+const previewScrollMemo = new Map<string, number>()
+
 export function renderPreview(host: HTMLElement, doc: Doc | null): void {
   const prevId = (host as any).__docId as string | undefined
   const prevScroll = (host.querySelector('.preview-scroll') as HTMLElement | null)?.scrollTop ?? 0
+  if (prevId) previewScrollMemo.set(prevId, prevScroll)
   clearLineSelection(host)
   host.innerHTML = ''
   if (!doc) { (host as any).__docId = undefined; return }
@@ -743,7 +747,7 @@ export function renderPreview(host: HTMLElement, doc: Doc | null): void {
     installCopyToNative(host)
   }
   const sc = host.querySelector('.preview-scroll') as HTMLElement | null
-  if (sc) sc.scrollTop = prevId === doc.id ? prevScroll : 0
+  if (sc) sc.scrollTop = prevId === doc.id ? prevScroll : (previewScrollMemo.get(doc.id) ?? 0)
   ;(host as any).__docId = doc.id
   // 预览重建后重新绑定滚动同步（容器是新的，旧锚点也失效了）
   refreshScrollSync()

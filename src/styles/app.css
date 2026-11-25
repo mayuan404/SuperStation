@@ -1096,7 +1096,7 @@ body.dragging-file, body.dragging-file * { cursor: grabbing !important; }
 }
 
 /* ---------- 文件浏览器 ---------- */
-.browser { display: none; flex: 1; flex-direction: column; min-width: 0; background: var(--bg); }
+.browser { display: none; flex: 1; flex-direction: column; min-width: 0; min-height: 0; background: var(--bg); }
 .browser-bar {
   display: flex; align-items: center; gap: 4px; padding: 6px 8px;
   border-bottom: 1px solid var(--line); background: var(--panel);
