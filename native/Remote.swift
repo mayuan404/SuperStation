@@ -23,14 +23,60 @@ enum Remote {
 
     /// 同一个目标复用一条底层连接：ControlMaster 让后续 ssh 直接走已有 socket，
     /// 避免每次列目录都付一次握手 + 认证的代价。
-    static func controlOptions(_ t: Target) -> [String] {
+    static func controlPath(_ t: Target) -> String {
         let key = stableHash("\(t.user)@\(t.host):\(t.port)")
-        let sock = "/tmp/ws-ssh-\(key)"
-        return ["-o", "ControlMaster=auto", "-o", "ControlPath=\(sock)", "-o", "ControlPersist=180"]
+        return "/tmp/ws-ssh-\(key)"
+    }
+
+    static func controlOptions(_ t: Target) -> [String] {
+        ["-o", "ControlMaster=auto", "-o", "ControlPath=\(controlPath(t))", "-o", "ControlPersist=300"]
+    }
+
+    private static func dest(_ t: Target) -> String {
+        "\(t.user.isEmpty ? "root" : t.user)@\(t.host)"
+    }
+
+    private static func makeEnv(_ t: Target) -> ([String: String], Askpass?) {
+        var env: [String: String] = ["PATH": "/usr/bin:/bin:/usr/sbin:/sbin"]
+        guard let sid = t.secretId, let pw = SSHSecrets.get(sid), let ap = Askpass.make(password: pw) else {
+            return (env, nil)
+        }
+        for (k, v) in ap.env { env[k] = v }
+        return (env, ap)
+    }
+
+    /// 串行地确保有一条常驻 master：并发调用时只有一个去建连，其余命令直接复用，
+    /// 避免“ControlMaster=auto 并发竞争把 socket 删掉，结果每条命令都重新认证”。
+    private static let masterLock = NSLock()
+
+    private static func masterAlive(_ t: Target) -> Bool {
+        let res = exec("/usr/bin/ssh",
+                       ["-o", "ControlPath=\(controlPath(t))", "-O", "check", dest(t)],
+                       env: ["PATH": "/usr/bin:/bin:/usr/sbin:/sbin"], stdin: nil, timeout: 8)
+        return res.code == 0
+    }
+
+    @discardableResult
+    static func ensureMaster(_ t: Target) -> Bool {
+        masterLock.lock()
+        defer { masterLock.unlock() }
+        if masterAlive(t) { return true }
+        let (env, ap) = makeEnv(t)
+        defer { ap?.cleanup() }
+        var args = ["-N", "-f",
+                    "-o", "StrictHostKeyChecking=accept-new", "-o", "ConnectTimeout=12",
+                    "-o", "BatchMode=no",
+                    "-o", "ControlMaster=yes", "-o", "ControlPath=\(controlPath(t))",
+                    "-o", "ControlPersist=300"]
+        if t.port > 0 && t.port != 22 { args += ["-p", String(t.port)] }
+        args += [dest(t)]
+        let res = exec("/usr/bin/ssh", args, env: env, stdin: nil, timeout: 25)
+        return res.code == 0 || masterAlive(t)
     }
 
     static func warm(_ t: Target) -> [String: Any] {
         let start = Date()
+        _ = ensureMaster(t)
         let res = run(t, command: "true", timeout: 20)
         return ["ok": res.code == 0, "ms": Int(Date().timeIntervalSince(start) * 1000)]
     }
@@ -40,6 +86,7 @@ enum Remote {
             return exec("/bin/sh", ["-c", command], env: ["PATH": "/usr/bin:/bin:/usr/sbin:/sbin"],
                         stdin: stdin, timeout: timeout)
         }
+        _ = ensureMaster(t)
         var args = ["-o", "StrictHostKeyChecking=accept-new", "-o", "ConnectTimeout=12", "-o", "BatchMode=no"]
         args += controlOptions(t)
         if t.port > 0 && t.port != 22 { args += ["-p", String(t.port)] }
