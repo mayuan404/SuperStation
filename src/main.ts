@@ -512,6 +512,12 @@ function agoText(ts: number): string {
   return `${Math.floor(d / 86400 / 365)} 年前`
 }
 
+/** 把文档路径还原成远端/本地真实绝对路径：ssh://<rootId>/root/dev/x → /root/dev/x */
+function absolutePathOf(p: string): string {
+  const m = /^ssh:\/\/[^/]+(\/.*)$/.exec(p)
+  return m ? m[1] : p
+}
+
 async function blameFor(doc: Doc, line: number): Promise<BlameInfo | null> {
   if (!doc.path || !doc.editable) return null
   const dir = dirname(doc.path)
@@ -519,8 +525,10 @@ async function blameFor(doc: Doc, line: number): Promise<BlameInfo | null> {
   const root = repoRootCache.get(dir)
   if (!root) return null
   const rootClean = root.replace(/\/$/, '')
-  if (doc.path !== rootClean && !doc.path.startsWith(rootClean + '/')) return null
-  const rel = doc.path.slice(rootClean.length + 1)
+  // git 返回的是仓库根的绝对路径，而文档路径可能带 ssh://<rootId> 前缀，先剥掉再比
+  const abs = absolutePathOf(doc.path)
+  if (abs !== rootClean && !abs.startsWith(rootClean + '/')) return null
+  const rel = abs.slice(rootClean.length + 1)
   if (!rel) return null
   const key = `${rootClean}|${rel}|${doc.mtime}|${line}`
   const hit = blameCache.get(key)
@@ -702,6 +710,9 @@ function syncActive(): void {
   if ((doc?.id ?? null) !== editorDocId) {
     editor.setDoc(doc)
     editorDocId = doc?.id ?? null
+    // 切换文件/切回标签时，光标通常没动，也要补一次 blame（否则行尾标注要等移动光标才出现）
+    const line = doc && doc.editable ? editor.currentLine() : 1
+    scheduleBlame(doc, line)
   }
 
   const showEditor = !!doc && doc.editable && doc.view !== 'preview'
