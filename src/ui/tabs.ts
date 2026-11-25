@@ -12,7 +12,8 @@ export interface TabActions {
 
 let lastActive: string | null = null
 
-export function renderTabs(host: HTMLElement, docs: Doc[], activeId: string | null, actions: TabActions): void {
+export function renderTabs(host: HTMLElement, docs: Doc[], activeId: string | null, actions: TabActions,
+                          activity?: Set<string>): void {
   clear(host)
   let dragId: string | null = null
   const nameCounts = new Map<string, number>()
@@ -29,7 +30,9 @@ export function renderTabs(host: HTMLElement, docs: Doc[], activeId: string | nu
   for (const doc of docs) {
     const active = doc.id === activeId
     const tab = el('div', {
-      class: 'tab' + (active ? ' active' : '') + (doc.locked ? ' locked' : ''),
+      class: 'tab' + (active ? ' active' : '')
+        + (doc.locked ? ' locked' : '')
+        + (activity?.has(doc.id) && !active ? ' has-output' : ''),
       title: (doc.path || doc.name)
         + (doc.detail ? ` · ${doc.detail}` : '')
         + (doc.locked ? '（已锁定，右键解锁）' : ''),
@@ -67,6 +70,9 @@ export function renderTabs(host: HTMLElement, docs: Doc[], activeId: string | nu
     const dot = el('div', { class: 'tab-dot' })
     if (doc.issues.length) dot.append(el('div', { class: 'err-dot', title: doc.issues[0].message }))
     else if (doc.dirty) dot.append(el('div', { class: 'dirty' }))
+    else if (activity?.has(doc.id) && !active) {
+      dot.append(el('div', { class: 'outdot', title: '有新的输出' }))
+    }
     tab.append(dot)
 
     if (doc.locked) {

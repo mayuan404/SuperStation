@@ -486,7 +486,27 @@ let tabSig = ''
 function tabSignature(): string {
   return S.state.docs
     .map((d) => `${d.id}|${d.name}|${d.dirty ? 1 : 0}|${d.locked ? 1 : 0}|${d.issues.length}`)
-    .join('~') + '#' + (S.state.activeId ?? '')
+    .join('~') + '#' + (S.state.activeId ?? '') + '#act:' + Array.from(tabActivity).sort().join(',')
+}
+
+/** 后台终端有新输出：标签闪一下，并留一个圆点直到点开 */
+const tabActivity = new Set<string>()
+const tabActivityAt = new Map<string, number>()
+
+function markTabActivity(id: string): void {
+  if (id === S.state.activeId) return
+  const now = Date.now()
+  // 连续输出（如 tail -f）不要每秒重绘：1.5 秒内只闪一次
+  if (now - (tabActivityAt.get(id) ?? 0) < 1500) return
+  tabActivityAt.set(id, now)
+  tabActivity.add(id)
+  renderTabsBar()
+}
+
+function clearTabActivity(id: string): void {
+  if (!tabActivity.delete(id)) return
+  tabActivityAt.delete(id)
+  renderTabsBar()
 }
 
 function renderTabsBar(): void {
@@ -494,12 +514,12 @@ function renderTabsBar(): void {
   if (sig === tabSig) return
   tabSig = sig
   renderTabs(ui.tabbar, S.state.docs, S.state.activeId, {
-    select: (id) => S.setActive(id),
+    select: (id) => { clearTabActivity(id); S.setActive(id) },
     close: (id) => closeTab(id),
     newTab: () => newUntitled(),
     closeMenu: (id, ev) => tabMenu(id, ev),
     move: (id, beforeId) => S.moveDoc(id, beforeId)
-  })
+  }, tabActivity)
 }
 
 async function closeTab(id: string): Promise<void> {
@@ -1934,7 +1954,9 @@ async function boot(): Promise<void> {
       syncActive()
       // 关掉的终端会话要释放
       for (const [id, t] of Array.from(terminals)) {
-        if (!S.state.docs.some((d) => d.id === id)) { t.dispose(); terminals.delete(id) }
+        if (!S.state.docs.some((d) => d.id === id)) {
+          t.dispose(); terminals.delete(id); tabActivity.delete(id); tabActivityAt.delete(id)
+        }
       }
       // 关掉的远端文件面板也要从 DOM 和 map 里移除，避免残留面板继续占位
       for (const [id, p] of Array.from(ctx.remotePanels)) {
@@ -1988,12 +2010,17 @@ async function boot(): Promise<void> {
       const prev = (ptyRecent.get(payload.id) ?? '') + txt
       ptyRecent.set(payload.id, prev.length > PTY_RECENT_MAX ? prev.slice(-PTY_RECENT_MAX) : prev)
     }
-    const s = [...terminals.values()].find((t) => t.ptyId === payload?.id)
+    let s: TermSession | undefined
+    let docId: string | undefined
+    for (const [id, t] of terminals) {
+      if (t.ptyId === payload?.id) { s = t; docId = id; break }
+    }
     if (!s || !payload?.data) return
     const bin = atob(payload.data)
     const bytes = new Uint8Array(bin.length)
     for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
     s.write(bytes)
+    if (docId) markTabActivity(docId)
   })
   onEvent('pty.exit', (payload: any) => {
     const s = [...terminals.values()].find((t) => t.ptyId === payload?.id)
