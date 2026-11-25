@@ -32,6 +32,22 @@ export function termFontConfig(): { size: number; family: string } {
   }
 }
 
+/** 终端连接状态：给标签栏左上角的小圆点用（绿=已连接，黄=连接中，红=失败，灰=本地） */
+export type TermState = 'local' | 'pending' | 'ok' | 'bad'
+export const termStates = new Map<string, TermState>()
+const termStateListeners = new Set<(id: string, s: TermState) => void>()
+
+export function subscribeTermState(fn: (id: string, s: TermState) => void): () => void {
+  termStateListeners.add(fn)
+  return () => { termStateListeners.delete(fn) }
+}
+
+function publishTermState(id: string, s: TermState): void {
+  if (termStates.get(id) === s) return
+  termStates.set(id, s)
+  for (const fn of termStateListeners) fn(id, s)
+}
+
 /** 已打开的终端（设置变更后统一刷新字体） */
 const liveSessions = new Set<TermSession>()
 export function applyTerminalFont(): void {
@@ -129,6 +145,7 @@ export class TermSession {
     this.docId = docId
     this.profile = profile
     this.deps = deps
+    publishTermState(docId, profile.kind === 'ssh' ? 'pending' : 'local')
 
     const bg = cssVar('--bg', '#ffffff')
     const fg = cssVar('--fg', '#1d1d1f')
@@ -266,6 +283,7 @@ export class TermSession {
   async fallbackToLocal(): Promise<void> {
     this.restarted = true
     this.connected = false
+    publishTermState(this.docId, 'local')
     this.probe = ''
     this.setLive(false)
     this.statusEl.textContent = '本地终端'
@@ -275,6 +293,7 @@ export class TermSession {
   }
 
   async restart(useSecret: boolean): Promise<void> {
+    publishTermState(this.docId, this.profile.kind === 'ssh' ? 'pending' : 'local')
     const wait = this.retryUnlockAt - Date.now()
     if (wait > 0) {
       this.term.write(`\r\n\x1b[2m[连续失败，${Math.ceil(wait / 1000)} 秒后再试]\x1b[0m\r\n`)
@@ -390,11 +409,13 @@ export class TermSession {
       if (this.probe.length > 4000) this.probe = this.probe.slice(-2000)
       if (/permission denied|connection refused|could not resolve|timed out|no route to host|host key verification failed/i.test(this.probe)) {
         this.connected = true
+        publishTermState(this.docId, 'bad')
         this.statusEl.textContent = '连接失败'
         this.statusEl.classList.remove('pending')
         this.statusEl.classList.add('bad')
       } else if (/password:\s*$|last login|[$#]\s$/i.test(this.probe)) {
         this.connected = true
+        publishTermState(this.docId, 'ok')
         this.statusEl.textContent = '已连接'
         this.statusEl.classList.remove('pending')
         this.statusEl.classList.add('ok')
@@ -426,6 +447,7 @@ export class TermSession {
   /** SSH 连接失败：保留会话并显示重连，不再悄悄变成本地终端。 */
   markConnectionFailed(code: number, reason?: string): void {
     this.connected = false
+    publishTermState(this.docId, 'bad')
     this.setLive(false)
     this.statusEl.textContent = '连接失败'
     this.statusEl.classList.remove('pending', 'ok')

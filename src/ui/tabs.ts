@@ -13,7 +13,7 @@ export interface TabActions {
 let lastActive: string | null = null
 
 export function renderTabs(host: HTMLElement, docs: Doc[], activeId: string | null, actions: TabActions,
-                          activity?: Set<string>): void {
+                          activity?: Set<string>, states?: Map<string, string>): void {
   clear(host)
   let dragId: string | null = null
   const nameCounts = new Map<string, number>()
@@ -39,9 +39,20 @@ export function renderTabs(host: HTMLElement, docs: Doc[], activeId: string | nu
       draggable: 'true',
       dataset: { id: doc.id }
     })
-    if (doc.kind === 'terminal' && doc.color) {
-      const kindDot = el('span', { class: 'tab-kind-dot' })
-      kindDot.style.background = doc.color
+    if (doc.kind === 'terminal') {
+      // 左上角圆点表示连接状态：绿=SSH 正常，黄=连接中，红=失败，灰=本地
+      const st = states?.get(doc.id) ?? ''
+      const kindDot = el('span', {
+        class: 'tab-kind-dot st-' + (st || 'local'),
+        title: st === 'ok' ? 'SSH 已连接'
+          : st === 'bad' ? 'SSH 连接失败'
+          : st === 'pending' ? '正在连接…'
+          : '本地终端'
+      })
+      kindDot.style.background = st === 'ok' ? '#3dbf63'
+        : st === 'bad' ? '#e05555'
+        : st === 'pending' ? '#d9a441'
+        : (doc.color || 'var(--fg-3)')
       tab.append(kindDot)
     }
 

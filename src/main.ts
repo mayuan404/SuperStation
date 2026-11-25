@@ -70,6 +70,7 @@ import { terminalMenu, openTerminalMenuAtCenter, registerRemoteRoots, addRemoteR
 import { TermSession, applyTerminalFont, type TermProfile } from './ui/terminal'
 import { Sidebar, type Entry } from './ui/sidebar'
 import { renderTabs } from './ui/tabs'
+import { termStates, subscribeTermState } from './ui/terminal'
 import { THEMES, ICON_SETS, applyTheme } from './ui/theme'
 import { toast, prompt, confirmDialog, contextMenu, openPalette, openSheet, type PaletteItem } from './ui/overlays'
 import { setClipboardWriter } from './lib/textselect'
@@ -487,6 +488,7 @@ function tabSignature(): string {
   return S.state.docs
     .map((d) => `${d.id}|${d.name}|${d.dirty ? 1 : 0}|${d.locked ? 1 : 0}|${d.issues.length}`)
     .join('~') + '#' + (S.state.activeId ?? '') + '#act:' + Array.from(tabActivity).sort().join(',')
+    + '#ts:' + S.state.docs.map((d) => d.kind === 'terminal' ? (termStates.get(d.id) ?? '') : '').join(',')
 }
 
 /** 后台终端有新输出：标签闪一下，并留一个圆点直到点开 */
@@ -519,7 +521,7 @@ function renderTabsBar(): void {
     newTab: () => newUntitled(),
     closeMenu: (id, ev) => tabMenu(id, ev),
     move: (id, beforeId) => S.moveDoc(id, beforeId)
-  }, tabActivity)
+  }, tabActivity, termStates)
 }
 
 async function closeTab(id: string): Promise<void> {
@@ -1945,6 +1947,9 @@ async function boot(): Promise<void> {
   ;(window as any).__bnbRefreshRemote = refreshRemoteTree
   window.addEventListener('focus', () => refreshRemoteTree())
   document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshRemoteTree() })
+
+  // 终端连接状态变了（连上/断开/重连）就刷新标签栏的小圆点
+  subscribeTermState(() => renderTabsBar())
 
   S.subscribe((kind) => {
     if (kind === 'active' || kind === 'docs') saveSession()

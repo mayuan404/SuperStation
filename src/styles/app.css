@@ -393,6 +393,14 @@ body {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 28%, transparent);
 }
 @keyframes outdot-pulse { 0%, 100% { transform: scale(.82); } 50% { transform: scale(1.15); } }
+/* 输出提示再加一条底部强调线，扫一眼就能看到 */
+.tab.has-output::after {
+  content: ''; position: absolute; left: 6px; right: 6px; bottom: 1px;
+  height: 2px; border-radius: 2px; background: var(--accent);
+}
+/* 连接状态点：已连接给一点光晕，连接中呼吸 */
+.tab .tab-kind-dot.st-ok { box-shadow: 0 0 0 2px color-mix(in srgb, #3dbf63 28%, transparent); }
+.tab .tab-kind-dot.st-pending { animation: outdot-pulse 1.2s ease-in-out infinite; }
 
 .tab-add { width: 24px; height: 24px; border-radius: 6px; display: grid; place-items: center; color: var(--fg-3); }
 .tab-add:hover { background: var(--panel-2); color: var(--fg); }
