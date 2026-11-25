@@ -174,14 +174,22 @@ enum Remote {
             guard parts[0].count >= 10 else { continue }
             let perms = parts[0]
             let size = Int(parts[4]) ?? 0
-            var name = parts[8...].joined(separator: " ")
+            // 带 --time-style=+%s 时是 epoch 秒；否则是老格式（月 日 时间/年份）
+            var nameStart = 8
+            var mtime: Double = 0
+            if parts.count >= 8, let epoch = Double(parts[5]), epoch > 0, epoch < 4_102_444_800 {
+                nameStart = 7
+                mtime = epoch
+            }
+            guard parts.count > nameStart else { continue }
+            var name = parts[nameStart...].joined(separator: " ")
             if perms.hasPrefix("l") {
                 // 软链接：name -> target
                 if let r = name.range(of: " -> ") { name = String(name[..<r.lowerBound]) }
             }
             if name == "." || name == ".." { continue }
             let isDir = perms.hasPrefix("d")
-            out.append(Entry(name: name, isDir: isDir, size: size, mtime: 0, mode: perms))
+            out.append(Entry(name: name, isDir: isDir, size: size, mtime: mtime, mode: perms))
         }
         out.sort { a, b in
             if a.isDir != b.isDir { return a.isDir }
@@ -191,13 +199,17 @@ enum Remote {
     }
 
     static func list(_ t: Target, path: String) -> [String: Any] {
-        let res = run(t, command: "LC_ALL=C ls -la \(quote(path)) 2>&1")
+        // 先要 epoch 时间（用来显示「几天前」）；不支持的 ls 再退回普通格式
+        var res = run(t, command: "LC_ALL=C ls -la --time-style=+%s \(quote(path)) 2>&1")
+        if res.code != 0 {
+            res = run(t, command: "LC_ALL=C ls -la \(quote(path)) 2>&1")
+        }
         let text = String(data: res.out, encoding: .utf8) ?? ""
         if res.code != 0 {
             return ["error": text.isEmpty ? "无法列目录（退出码 \(res.code)）" : text.trimmingCharacters(in: .whitespacesAndNewlines)]
         }
         let entries = parseListing(text, dir: path).map { e -> [String: Any] in
-            ["name": e.name, "isDir": e.isDir, "size": e.size, "mode": e.mode]
+            ["name": e.name, "isDir": e.isDir, "size": e.size, "mode": e.mode, "mtime": e.mtime]
         }
         return ["entries": entries]
     }

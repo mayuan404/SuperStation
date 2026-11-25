@@ -1,11 +1,11 @@
 import { invoke } from '../lib/bridge'
 import { el, clear } from '../lib/dom'
-import { dirname, humanSize } from '../lib/files'
-import { icon } from '../lib/icons'
+import { dirname, humanSize, relativeTime } from '../lib/files'
+import { fileIcon, icon, iconColor } from '../lib/icons'
 import { openSheet, toast } from './overlays'
 import type { TermProfile } from './terminal'
 
-interface REntry { name: string; isDir: boolean; size: number; mode: string }
+interface REntry { name: string; isDir: boolean; size: number; mode: string; mtime?: number }
 
 /** 远端操作需要的连接信息（面板和文件树都归约成这个形状） */
 export interface RemoteTarget {
@@ -282,13 +282,32 @@ export class RemotePanel {
   private render(): void {
     clear(this.list)
     if (!this.entries.length) this.list.append(el('div', { class: 'browser-empty' }, '空目录'))
-    for (const e of this.entries) {
-      const row = el('div', { class: 'browser-row', dataset: { path: this.join(e.name) } })
+    // 目录在前、文件在后；同一组内按名称自然排序（和左侧文件树一致）
+    const sorted = this.entries.slice().sort((a, b) => {
+      if (a.isDir !== b.isDir) return a.isDir ? -1 : 1
+      return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
+    })
+    for (const e of sorted) {
+      const row = el('div', {
+        class: 'browser-row' + (e.isDir ? ' is-dir' : ''),
+        dataset: { path: this.join(e.name) }
+      })
       const nameCell = el('div', { class: 'b-name' })
-      const ic = el('span', { class: 'b-ic' })
-      ic.append(icon(e.isDir ? 'folder' : 'file'))
+      const ic = el('span', { class: 'b-ic' + (e.isDir ? ' is-dir' : '') })
+      if (e.isDir) {
+        ic.append(icon('folder'))
+      } else {
+        const ext = e.name.includes('.') ? e.name.split('.').pop()!.toLowerCase() : ''
+        ic.append(fileIcon(ext))
+        const c = iconColor(ext)
+        if (c) ic.style.color = c
+      }
       nameCell.append(ic, el('span', { class: 'b-text' }, e.name))
-      row.append(nameCell, el('div', { class: 'b-size' }, e.isDir ? '—' : humanSize(e.size)), el('div', { class: 'b-time' }))
+      row.append(
+        nameCell,
+        el('div', { class: 'b-size' }, e.isDir ? '' : humanSize(e.size)),
+        el('div', { class: 'b-time' }, e.mtime ? relativeTime(e.mtime) : '')
+      )
       row.addEventListener('click', () => {
         this.selected = e.name
         this.selectedEntry = e
