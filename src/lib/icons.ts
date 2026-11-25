@@ -38,6 +38,7 @@ const P: Record<string, string> = {
   pdf: '<path d="M4 2.2h5l3 3v8.6H4z"/><path d="M9 2.2v3h3"/><path d="M6 10.6V8.2h1.2a.9.9 0 0 1 0 1.8H6M9.2 10.6V8.2h1"/><path d="M11.6 10.6V8.2"/>',
   play: '<path d="M5 3.6l7 4.4-7 4.4z"/>',
   'arrow-left': '<path d="M12 8H4M7.4 4.6L4 8l3.4 3.4"/>',
+  sort: '<path d="M4.4 13.2V2.8M4.4 2.8L2.5 4.9M4.4 2.8l1.9 2.1"/><path d="M11.6 2.8v10.4M11.6 13.2l-1.9-2.1M11.6 13.2l1.9-2.1"/>',
   check: '<path d="M3.2 8.4l3.1 3.1 6.5-6.6"/>',
   contrast: '<circle cx="8" cy="8" r="6"/><path d="M8 2a6 6 0 0 1 0 12z" fill="currentColor" stroke="none"/>',
   archive: '<rect x="2" y="3" width="12" height="3.4" rx=".8"/><path d="M3.2 6.4v6.2a.9.9 0 0 0 .9.9h7.8a.9.9 0 0 0 .9-.9V6.4"/><path d="M6.6 9.2h2.8"/>',

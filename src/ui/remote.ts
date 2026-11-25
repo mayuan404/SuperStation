@@ -7,6 +7,20 @@ import type { TermProfile } from './terminal'
 
 interface REntry { name: string; isDir: boolean; size: number; mode: string; mtime?: number }
 
+/** 列表排序方式：名称 / 类型 / 修改时间（新的在前）；目录始终排在最前 */
+type SortMode = 'name' | 'type' | 'time'
+
+const SORT_LABEL: Record<SortMode, string> = { name: '名称', type: '类型', time: '时间' }
+const SORT_STORE = 'sws.remoteSort'
+
+function loadSortMode(): SortMode {
+  try {
+    const v = localStorage.getItem(SORT_STORE)
+    if (v === 'name' || v === 'type' || v === 'time') return v
+  } catch { /* 隐私模式读不到就算了 */ }
+  return 'name'
+}
+
 /** 远端操作需要的连接信息（面板和文件树都归约成这个形状） */
 export interface RemoteTarget {
   host?: string
@@ -178,6 +192,7 @@ export class RemotePanel {
   private cache = new Map<string, { entries: REntry[]; at: number }>()
   private selected: string | null = null
   private selectedEntry: REntry | null = null
+  private sortMode: SortMode = loadSortMode()
 
   constructor(profile: TermProfile, deps: RemoteDeps) {
     this.profile = profile
@@ -197,9 +212,28 @@ export class RemotePanel {
     const bar = el('div', { class: 'browser-bar' },
       up,
       this.pathBar,
-      mk('refresh', '刷新', () => this.load(this.path, true)),
-      mk('close', '关闭', () => (this.deps as any).onClose?.())
+      mk('refresh', '刷新', () => this.load(this.path, true))
     )
+    // 排序方式：名称 / 类型 / 时间，选择记在 localStorage，下次打开还是这个
+    const sortBtn = el('button', { class: 'browser-btn wide', title: '排序方式' },
+      `排序：${SORT_LABEL[this.sortMode]}`) as HTMLButtonElement
+    sortBtn.addEventListener('click', () => {
+      const r = sortBtn.getBoundingClientRect()
+      const items = (['name', 'type', 'time'] as SortMode[]).map((m) => ({
+        label: m === 'name' ? '按名称' : m === 'type' ? '按类型（扩展名）' : '按修改时间（新的在前）',
+        icon: this.sortMode === m ? 'check' : undefined,
+        sub: this.sortMode === m ? '当前' : undefined,
+        onClick: () => {
+          if (this.sortMode === m) return
+          this.sortMode = m
+          try { localStorage.setItem(SORT_STORE, m) } catch { /* ignore */ }
+          sortBtn.textContent = `排序：${SORT_LABEL[m]}`
+          this.render()
+        }
+      }))
+      this.deps.menu(r.left, r.bottom + 4, items)
+    })
+    bar.append(sortBtn, mk('close', '关闭', () => (this.deps as any).onClose?.()))
     const dlBtn = el('button', { class: 'term-file-btn', title: '把选中的文件下载到本机（会先选保存位置）' }, '下载')
     dlBtn.addEventListener('click', () => {
       if (!this.selectedEntry) { this.deps.toast('先选中一个文件'); return }
@@ -279,14 +313,34 @@ export class RemotePanel {
     return this.path === '.' || this.path === '/' ? `${this.path === '/' ? '' : ''}/${name}` : `${this.path.replace(/\/$/, '')}/${name}`
   }
 
+  /** 目录始终在前，组内按当前排序方式排列 */
+  private sortEntries(entries: REntry[]): REntry[] {
+    const byName = (a: REntry, b: REntry) =>
+      a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
+    const ext = (e: REntry) => {
+      const i = e.name.lastIndexOf('.')
+      return i <= 0 ? '\uffff' : e.name.slice(i + 1).toLowerCase()
+    }
+    return entries.slice().sort((a, b) => {
+      if (a.isDir !== b.isDir) return a.isDir ? -1 : 1
+      if (this.sortMode === 'type' && !a.isDir) {
+        const d = ext(a).localeCompare(ext(b))
+        if (d !== 0) return d
+        return byName(a, b)
+      }
+      if (this.sortMode === 'time') {
+        const d = (b.mtime ?? 0) - (a.mtime ?? 0)
+        if (d !== 0) return d
+        return byName(a, b)
+      }
+      return byName(a, b)
+    })
+  }
+
   private render(): void {
     clear(this.list)
     if (!this.entries.length) this.list.append(el('div', { class: 'browser-empty' }, '空目录'))
-    // 目录在前、文件在后；同一组内按名称自然排序（和左侧文件树一致）
-    const sorted = this.entries.slice().sort((a, b) => {
-      if (a.isDir !== b.isDir) return a.isDir ? -1 : 1
-      return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
-    })
+    const sorted = this.sortEntries(this.entries)
     for (const e of sorted) {
       const row = el('div', {
         class: 'browser-row' + (e.isDir ? ' is-dir' : ''),
