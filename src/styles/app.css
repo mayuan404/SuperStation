@@ -1625,3 +1625,23 @@ button:disabled,
   font: 500 11px var(--sans, inherit); cursor: pointer;
 }
 .error-btn:hover { background: rgba(255, 255, 255, 0.12); color: var(--fg); }
+
+/* ---------- 行级 git blame（编辑器行尾） ---------- */
+.cm-blame {
+  margin-left: 1.6em;
+  color: var(--fg-3);
+  font-size: 11px;
+  opacity: .78;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+.cm-blame:hover { color: var(--accent); opacity: 1; }
+
+/* 提交详情弹窗里的 stat 输出 */
+.git-commit-detail {
+  margin: 0; max-height: 56vh; overflow: auto; white-space: pre-wrap;
+  font-family: var(--mono, "SF Mono", Menlo, Consolas, monospace);
+  font-size: 12px; line-height: 1.5; color: var(--fg);
+  background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px;
+}

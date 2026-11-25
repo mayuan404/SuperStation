@@ -1,7 +1,8 @@
-import { Compartment, EditorState, type Extension } from '@codemirror/state'
+import { Compartment, EditorState, StateEffect, StateField, type Extension } from '@codemirror/state'
 import {
   EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter,
-  drawSelection, dropCursor, rectangularSelection, crosshairCursor, highlightSpecialChars
+  drawSelection, dropCursor, rectangularSelection, crosshairCursor, highlightSpecialChars,
+  Decoration, WidgetType, type DecorationSet
 } from '@codemirror/view'
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands'
 import { searchKeymap, highlightSelectionMatches, search, openSearchPanel, setSearchQuery, SearchQuery } from '@codemirror/search'
@@ -33,6 +34,48 @@ const highlightStyle = HighlightStyle.define([
   { tag: [t.constant(t.variableName), t.constant(t.propertyName)], class: 'tok-const' },
   { tag: [t.invalid], class: 'tok-invalid' }
 ])
+
+export interface BlameInfo {
+  line: number
+  text: string
+  title: string
+  hash: string
+}
+
+const setBlameEffect = StateEffect.define<BlameInfo | null>()
+
+class BlameWidget extends WidgetType {
+  constructor(readonly info: BlameInfo) { super() }
+  eq(other: BlameWidget): boolean {
+    return other.info.text === this.info.text && other.info.line === this.info.line
+  }
+  toDOM(): HTMLElement {
+    const span = document.createElement('span')
+    span.className = 'cm-blame'
+    span.textContent = this.info.text
+    span.title = this.info.title
+    ;(span as any).__blame = this.info
+    return span
+  }
+  ignoreEvent(): boolean { return false }
+}
+
+const blameField = StateField.define<DecorationSet>({
+  create: () => Decoration.none,
+  update(deco, tr) {
+    deco = deco.map(tr.changes)
+    for (const e of tr.effects) {
+      if (!e.is(setBlameEffect)) continue
+      if (!e.value) return Decoration.none
+      const info = e.value
+      const n = Math.min(Math.max(1, info.line), tr.state.doc.lines)
+      const line = tr.state.doc.line(n)
+      return Decoration.set([Decoration.widget({ widget: new BlameWidget(info), side: 1 }).range(line.to)])
+    }
+    return deco
+  },
+  provide: (f) => EditorView.decorations.from(f)
+})
 
 function baseTheme(dark: boolean): Extension {
   return EditorView.theme(
@@ -133,6 +176,8 @@ export class Editor {
   private langToken = 0
   onChange: (text: string) => void = () => {}
   onCursor: (info: { line: number; col: number; selChars: number; selLines: number; lines: number }) => void = () => {}
+  /** 点击行尾 blame 标注（参数是提交 hash） */
+  onBlameClick: (info: BlameInfo) => void = () => {}
 
   constructor(host: HTMLElement) {
     this.view = new EditorView({
@@ -166,6 +211,16 @@ export class Editor {
       this.themeComp.of(baseTheme(dark)),
       this.langComp.of(lang ?? []),
       this.wrapComp.of([]),
+      blameField,
+      EditorView.domEventHandlers({
+        mousedown: (ev) => {
+          const t = (ev.target as HTMLElement | null)?.closest?.('.cm-blame') as HTMLElement | null
+          if (!t) return false
+          const info = (t as any).__blame as BlameInfo | undefined
+          if (info) { ev.preventDefault(); this.onBlameClick(info) }
+          return true
+        }
+      }),
       // 双击选整行 + ⌘↑/⌘↓ 以整行为单位跳（落点在本行行尾）
       editorLineSelection(),
       activeLineSelectionGuard(),
@@ -202,6 +257,17 @@ export class Editor {
         }
       })
     ]
+  }
+
+  /** 更新行尾的 blame 标注（null = 清掉） */
+  setBlame(info: BlameInfo | null): void {
+    this.view.dispatch({ effects: setBlameEffect.of(info) })
+  }
+
+  /** 当前光标所在行号（1 起） */
+  currentLine(): number {
+    const pos = this.view.state.selection.main.head
+    return this.view.state.doc.lineAt(pos).number
   }
 
   setDoc(doc: Doc | null): void {

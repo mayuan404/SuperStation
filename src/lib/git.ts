@@ -41,6 +41,53 @@ export async function readBranches(treePath: string): Promise<GitBranch[]> {
   return run.code === 0 ? parseBranches(run.stdout) : []
 }
 
+export interface GitBlame {
+  hash: string
+  author: string
+  time: number
+  summary: string
+  line: number
+  uncommitted: boolean
+}
+
+/** 当前目录所属仓库的根（远端绝对路径） */
+export async function repoRootOf(dir: string): Promise<string | null> {
+  const run = await gitRun(dir, 'git rev-parse --show-toplevel 2>/dev/null', 15)
+  const root = run.code === 0 ? run.stdout.trim() : ''
+  return root || null
+}
+
+/** 单行 blame（relPath 相对仓库根） */
+export async function readBlame(dir: string, relPath: string, line: number): Promise<GitBlame | null> {
+  const run = await gitRun(
+    dir,
+    `git -c core.quotePath=false blame --line-porcelain -L ${Math.max(1, line)},${Math.max(1, line)} -- ${shq(relPath)} 2>&1`,
+    25
+  )
+  if (run.code !== 0) return null
+  const lines = run.stdout.split('\n')
+  const m = (lines[0] ?? '').match(/^([0-9a-f]{7,40})\s/)
+  if (!m) return null
+  const get = (key: string) => lines.find((l) => l.startsWith(key + ' '))?.slice(key.length + 1) ?? ''
+  return {
+    hash: m[1],
+    author: get('author'),
+    time: Number(get('author-time')) || 0,
+    summary: get('summary'),
+    line,
+    uncommitted: /^0+$/.test(m[1])
+  }
+}
+
+/** 提交详情（stat） */
+export async function commitStat(dir: string, hash: string): Promise<GitRun> {
+  return gitRun(
+    dir,
+    `git -c core.quotePath=false show --stat --format='commit %H%n作者: %an <%ae>%n时间: %ad%n%n    %s%n' ${shq(hash)} 2>&1`,
+    30
+  )
+}
+
 export async function readLog(treePath: string, n = 5): Promise<GitCommit[]> {
   const run = await gitRun(treePath, `git log -n ${Math.max(1, n)} --pretty=format:'%h%x09%an%x09%ar%x09%s'`, 20)
   return run.code === 0 ? parseLog(run.stdout) : []

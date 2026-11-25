@@ -7,6 +7,8 @@ import { displayPath, pathVariants, relativePath } from './lib/paths'
 import * as S from './lib/store'
 import { checkJSON } from './lib/jsoncheck'
 import { getErrors, subscribeErrors } from './lib/errors'
+import { readBlame, repoRootOf, commitStat } from './lib/git'
+import type { BlameInfo } from './editor/editor'
 import { errorPanel } from './ui/overlays'
 import type { Doc } from './lib/store'
 import { Editor } from './editor/editor'
@@ -286,7 +288,9 @@ function buildShell(): void {
   editor.onCursor = (info) => {
     cursor = info
     renderStatus()
+    scheduleBlame(S.activeDoc(), info.line)
   }
+  editor.onBlameClick = (info) => { void showCommitInfo(info) }
   editor.setWrap(S.state.settings.lineWrap)
   aiPanel = new AIPanel({
     getDoc: () => S.activeDoc(),
@@ -489,6 +493,81 @@ function tabSignature(): string {
     .map((d) => `${d.id}|${d.name}|${d.dirty ? 1 : 0}|${d.locked ? 1 : 0}|${d.issues.length}`)
     .join('~') + '#' + (S.state.activeId ?? '') + '#act:' + Array.from(tabActivity).sort().join(',')
     + '#ts:' + S.state.docs.map((d) => d.kind === 'terminal' ? (termStates.get(d.id) ?? '') : '').join(',')
+}
+
+// ---------- 行级 git blame ----------
+let blameTimer = 0
+let blameSeq = 0
+const blameCache = new Map<string, { at: number; info: BlameInfo | null }>()
+const repoRootCache = new Map<string, string | null>()
+
+function agoText(ts: number): string {
+  if (!ts) return ''
+  const d = Math.max(0, Date.now() / 1000 - ts)
+  if (d < 60) return '刚刚'
+  if (d < 3600) return `${Math.floor(d / 60)} 分钟前`
+  if (d < 86400) return `${Math.floor(d / 3600)} 小时前`
+  if (d < 86400 * 30) return `${Math.floor(d / 86400)} 天前`
+  if (d < 86400 * 365) return `${Math.floor(d / 86400 / 30)} 个月前`
+  return `${Math.floor(d / 86400 / 365)} 年前`
+}
+
+async function blameFor(doc: Doc, line: number): Promise<BlameInfo | null> {
+  if (!doc.path || !doc.editable) return null
+  const dir = dirname(doc.path)
+  if (!repoRootCache.has(dir)) repoRootCache.set(dir, await repoRootOf(dir))
+  const root = repoRootCache.get(dir)
+  if (!root) return null
+  const rootClean = root.replace(/\/$/, '')
+  if (doc.path !== rootClean && !doc.path.startsWith(rootClean + '/')) return null
+  const rel = doc.path.slice(rootClean.length + 1)
+  if (!rel) return null
+  const key = `${rootClean}|${rel}|${doc.mtime}|${line}`
+  const hit = blameCache.get(key)
+  if (hit && Date.now() - hit.at < 300_000) return hit.info
+  const b = await readBlame(dir, rel, line)
+  let info: BlameInfo | null = null
+  if (b) {
+    const when = b.uncommitted ? '未提交' : agoText(b.time)
+    const summ = b.summary.length > 40 ? b.summary.slice(0, 40) + '…' : b.summary
+    const text = b.uncommitted ? '未提交' : `${b.author} · ${when}${summ ? ' · ' + summ : ''}`
+    const title = b.uncommitted
+      ? '这行还没有提交'
+      : `作者：${b.author}\n时间：${new Date(b.time * 1000).toLocaleString()}\n提交：${b.hash}\n摘要：${b.summary}\n（点击查看提交详情）`
+    info = { line, text, title, hash: b.hash }
+  }
+  blameCache.set(key, { at: Date.now(), info })
+  return info
+}
+
+function scheduleBlame(doc: Doc | null, line: number): void {
+  const seq = ++blameSeq
+  if (blameTimer) clearTimeout(blameTimer)
+  if (!doc || doc.view === 'preview' || !doc.path || !doc.editable) {
+    editor.setBlame(null)
+    return
+  }
+  blameTimer = window.setTimeout(() => {
+    blameFor(doc, line)
+      .then((info) => { if (seq === blameSeq) editor.setBlame(info) })
+      .catch(() => { if (seq === blameSeq) editor.setBlame(null) })
+  }, 220)
+}
+
+async function showCommitInfo(info: BlameInfo): Promise<void> {
+  const doc = S.activeDoc()
+  if (!doc?.path) return
+  const root = repoRootCache.get(dirname(doc.path))
+  if (!root) return
+  const run = await commitStat(root, info.hash)
+  openSheet(`提交 ${info.hash.slice(0, 8)}`, (body, close) => {
+    body.append(el('pre', { class: 'git-commit-detail' }, run.stdout || run.stderr || '没有输出'))
+    const bar = el('div', { class: 'git-commit-bar' })
+    const btn = el('button', { class: 'term-file-btn' }, '关闭')
+    btn.addEventListener('click', close)
+    bar.append(btn)
+    body.append(bar)
+  }, 760)
 }
 
 /** 后台终端有新输出：标签闪一下，并留一个圆点直到点开 */
