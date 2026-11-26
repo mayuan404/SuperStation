@@ -1,5 +1,24 @@
 # 更新记录
 
+## 0.7.4
+
+### 修复：主题配色和原版对不上
+
+- **终端配色完全不跟随主题**：以前只设了背景/前景和两个写死的黑（`#1c1c1e` / `#6b6b70`），
+  其余 14 个 ANSI 颜色全是 xterm.js 的默认值（经典红绿蓝），所以任何主题下终端都不像
+  Termius / iTerm 的同一套配色。现在每个主题都有完整的 16 色 ANSI 调色板。
+- **为 18 套主题补上官方配色**（不再靠底色推导）：Atom One Dark / One Dark Pro / Atom Dark /
+  Atom Light / Dracula / Dracula Soft / Nord / Solarized Dark & Light / Gruvbox Dark & Light /
+  Monokai / Monokai Pro / GitHub Dark / Tokyo Night / Tokyo Night Storm / Catppuccin Mocha /
+  Material Dark。
+- **注释、运算符、标签、属性色改为原版值**：以前统一用「前景色和背景色混合」推导，
+  例如 One Dark 的注释被算成偏亮的灰蓝、标签用了关键字紫、运算符用了蓝色；
+  现在 One Dark 是 `#5c6370` 注释 / `#56b6c2` 运算符 / `#e06c75` 标签 / `#d19a66` 属性。
+- **侧栏/面板底色也对齐原版**：Atom One Dark 的侧栏比编辑器更暗（`#21252b`），
+  以前是反过来的（比底色更亮），看起来就是「不像」。
+- 其余主题改用主题自身的强调色/关键字色推导 ANSI，不再回落到 xterm 默认色。
+- 切换主题时，已打开的终端会立即换成新配色（以前要重开终端）。
+
 ## 0.7.3
 
 ### 修复

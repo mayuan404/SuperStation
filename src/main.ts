@@ -69,7 +69,7 @@ function installCursorBridge(): void {
   })
 }
 import { terminalMenu, openTerminalMenuAtCenter, registerRemoteRoots, addRemoteRoot, removeRemoteRoot, remoteRootMenu, gitAction, sshForm, openTerminal, openRemote, remoteSaveQueue } from './ui/sessions'
-import { TermSession, applyTerminalFont, type TermProfile } from './ui/terminal'
+import { TermSession, applyTerminalFont, applyTerminalTheme, type TermProfile } from './ui/terminal'
 import { Sidebar, type Entry } from './ui/sidebar'
 import { renderTabs } from './ui/tabs'
 import { termStates, subscribeTermState } from './ui/terminal'
@@ -2281,7 +2281,7 @@ async function boot(): Promise<void> {
 ;(window as any).__betternotebook = {
   open: (p: string) => openFile(p),
   workspace: (p: string) => openWorkspace(p),
-  theme: (id: string) => { S.state.settings.theme = id; applyTheme(id); editor.applySettings(); S.emit('active') },
+  theme: (id: string) => { S.state.settings.theme = id; applyTheme(id); applyTerminalTheme(); editor.applySettings(); S.emit('active') },
   view: (v: string) => { const d = S.activeDoc(); if (d) S.setView(d, v as any) },
   state: () => S.state,
   invoke: (m: string, a: any) => invoke(m, a),

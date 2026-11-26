@@ -4,7 +4,7 @@ import * as S from '../lib/store'
 import { openSheet, openPalette, toast, prompt, type PaletteItem } from './overlays'
 import { THEMES, ICON_SETS, applyTheme } from './theme'
 import { ctx } from '../lib/ctx'
-import { TERM_FONTS, applyTerminalFont } from './terminal'
+import { TERM_FONTS, applyTerminalFont, applyTerminalTheme } from './terminal'
 
 export function themePalette(): void {
   const items: PaletteItem[] = THEMES.map((t) => ({
@@ -15,6 +15,7 @@ export function themePalette(): void {
     run: () => {
       S.state.settings.theme = t.id
       applyTheme(t.id, S.state.settings.iconSet)
+      applyTerminalTheme()
       S.saveSettings()
       ctx.editor?.applySettings()
       S.emit('active')
@@ -80,6 +81,7 @@ export function openSettings(): void {
             s.iconSet = i.id
             S.saveSettings()
             applyTheme(s.theme, i.id)
+            applyTerminalTheme()
             ctx.editor?.applySettings()
             S.emit('active')
             toast(`图标：${i.name}`, 1200)

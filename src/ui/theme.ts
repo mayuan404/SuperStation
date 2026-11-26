@@ -10,6 +10,13 @@ export interface ThemeDef {
   accent: string
   /** keyword, string, number, function, type */
   syn: [string, string, string, string, string]
+  /**
+   * 终端 16 色 ANSI：black, red, green, yellow, blue, magenta, cyan, white，
+   * 后 8 个是对应的 bright。不填则按主题推导。
+   */
+  ansi?: string[]
+  /** 覆盖运行时推导出的派生色（注释/运算符/标签/属性等），用于贴合原版配色 */
+  over?: Partial<Record<'com' | 'op' | 'tag' | 'attr' | 'const' | 'panel' | 'panel2' | 'elev' | 'fg2' | 'fg3', string>>
 }
 
 const hex2rgb = (h: string): [number, number, number] => {
@@ -30,37 +37,88 @@ const alpha = (h: string, a: number): string => {
   return `rgba(${r}, ${g}, ${b}, ${a})`
 }
 
-const T = (id: string, name: string, dark: boolean, bg: string, fg: string, accent: string, syn: [string, string, string, string, string]): ThemeDef =>
-  ({ id, name, dark, bg, fg, accent, syn })
+const T = (
+  id: string, name: string, dark: boolean, bg: string, fg: string, accent: string,
+  syn: [string, string, string, string, string],
+  extra: Pick<ThemeDef, 'ansi' | 'over'> = {},
+): ThemeDef => ({ id, name, dark, bg, fg, accent, syn, ...extra })
 
 export const THEMES: ThemeDef[] = [
   T('daylight', '晨光 · Daylight', false, '#ffffff', '#1f2023', '#3b6cf6', ['#a626a4', '#2f8f4e', '#b76b01', '#3b6cf6', '#b07d00']),
   T('midnight', '夜幕 · Midnight', true, '#1c1d21', '#e7e8ea', '#7aa2ff', ['#c792ea', '#a5e075', '#f78c6c', '#82aaff', '#ffcb6b']),
-  T('one-dark', 'Atom One Dark', true, '#282c34', '#abb2bf', '#61afef', ['#c678dd', '#98c379', '#d19a66', '#61afef', '#e5c07b']),
-  T('one-dark-pro', 'One Dark Pro', true, '#282c34', '#abb2bf', '#61afef', ['#c678dd', '#98c379', '#d19a66', '#61afef', '#e5c07b']),
-  T('dracula', 'Dracula', true, '#282a36', '#f8f8f2', '#bd93f9', ['#ff79c6', '#f1fa8c', '#bd93f9', '#50fa7b', '#8be9fd']),
-  T('dracula-soft', 'Dracula Soft', true, '#282a36', '#f8f8f2', '#ff79c6', ['#ff79c6', '#f1fa8c', '#bd93f9', '#50fa7b', '#8be9fd']),
-  T('nord', 'Nord', true, '#2e3440', '#eceff4', '#88c0d0', ['#81a1c1', '#a3be8c', '#b48ead', '#88c0d0', '#8fbcbb']),
-  T('solarized-dark', 'Solarized Dark', true, '#002b36', '#839496', '#268bd2', ['#859900', '#2aa198', '#d33682', '#268bd2', '#b58900']),
-  T('solarized-light', 'Solarized Light', false, '#fdf6e3', '#586e75', '#268bd2', ['#859900', '#2aa198', '#d33682', '#268bd2', '#b58900']),
-  T('gruvbox-dark', 'Gruvbox Dark', true, '#282828', '#ebdbb2', '#fabd2f', ['#fb4934', '#b8bb26', '#d3869b', '#fabd2f', '#83a598']),
-  T('gruvbox-light', 'Gruvbox Light', false, '#fbf1c7', '#3c3836', '#b57614', ['#9d0006', '#79740e', '#8f3f71', '#b57614', '#076678']),
-  T('monokai', 'Monokai', true, '#272822', '#f8f8f2', '#a6e22e', ['#f92672', '#e6db74', '#ae81ff', '#a6e22e', '#66d9ef']),
-  T('monokai-pro', 'Monokai Pro', true, '#2d2a2e', '#fcfcfa', '#ffd866', ['#ff6188', '#ffd866', '#ab9df2', '#a9dc76', '#78dce8']),
-  T('material-dark', 'Material Dark', true, '#263238', '#eeffff', '#82aaff', ['#c792ea', '#c3e88d', '#f78c6c', '#82aaff', '#ffcb6b']),
+  T('one-dark', 'Atom One Dark', true, '#282c34', '#abb2bf', '#61afef', ['#c678dd', '#98c379', '#d19a66', '#61afef', '#e5c07b'], {
+    ansi: ['#282c34', '#e06c75', '#98c379', '#e5c07b', '#61afef', '#c678dd', '#56b6c2', '#abb2bf', '#5c6370', '#e06c75', '#98c379', '#e5c07b', '#61afef', '#c678dd', '#56b6c2', '#ffffff'],
+    over: { com: '#5c6370', op: '#56b6c2', tag: '#e06c75', attr: '#d19a66', const: '#d19a66', panel: '#21252b', panel2: '#2f343d', elev: '#333842' },
+  }),
+  T('one-dark-pro', 'One Dark Pro', true, '#282c34', '#abb2bf', '#61afef', ['#c678dd', '#98c379', '#d19a66', '#61afef', '#e5c07b'], {
+    ansi: ['#282c34', '#e06c75', '#98c379', '#e5c07b', '#61afef', '#c678dd', '#56b6c2', '#abb2bf', '#5c6370', '#e06c75', '#98c379', '#e5c07b', '#61afef', '#c678dd', '#56b6c2', '#ffffff'],
+    over: { com: '#5c6370', op: '#56b6c2', tag: '#e06c75', attr: '#d19a66', const: '#d19a66', panel: '#21252b', panel2: '#2f343d', elev: '#333842' },
+  }),
+  T('dracula', 'Dracula', true, '#282a36', '#f8f8f2', '#bd93f9', ['#ff79c6', '#f1fa8c', '#bd93f9', '#50fa7b', '#8be9fd'], {
+    ansi: ['#21222c', '#ff5555', '#50fa7b', '#f1fa8c', '#bd93f9', '#ff79c6', '#8be9fd', '#f8f8f2', '#6272a4', '#ff6e6e', '#69ff94', '#ffffa5', '#d6acff', '#ff92df', '#a4ffff', '#ffffff'],
+    over: { com: '#6272a4', op: '#ff79c6', tag: '#ff79c6', attr: '#50fa7b', const: '#bd93f9', panel: '#21222c', panel2: '#2f313f', elev: '#343746' },
+  }),
+  T('dracula-soft', 'Dracula Soft', true, '#282a36', '#f8f8f2', '#ff79c6', ['#ff79c6', '#f1fa8c', '#bd93f9', '#50fa7b', '#8be9fd'], {
+    ansi: ['#21222c', '#ff5555', '#50fa7b', '#f1fa8c', '#bd93f9', '#ff79c6', '#8be9fd', '#f8f8f2', '#6272a4', '#ff6e6e', '#69ff94', '#ffffa5', '#d6acff', '#ff92df', '#a4ffff', '#ffffff'],
+    over: { com: '#6272a4', op: '#ff79c6', tag: '#ff79c6', attr: '#50fa7b', const: '#bd93f9', panel: '#21222c', panel2: '#2f313f', elev: '#343746' },
+  }),
+  T('nord', 'Nord', true, '#2e3440', '#eceff4', '#88c0d0', ['#81a1c1', '#a3be8c', '#b48ead', '#88c0d0', '#8fbcbb'], {
+    ansi: ['#3b4252', '#bf616a', '#a3be8c', '#ebcb8b', '#81a1c1', '#b48ead', '#88c0d0', '#e5e9f0', '#4c566a', '#bf616a', '#a3be8c', '#ebcb8b', '#81a1c1', '#b48ead', '#8fbcbb', '#eceff4'],
+    over: { com: '#616e88', op: '#81a1c1', tag: '#81a1c1', attr: '#8fbcbb', const: '#b48ead', panel: '#292e39', panel2: '#3b4252', elev: '#434c5e' },
+  }),
+  T('solarized-dark', 'Solarized Dark', true, '#002b36', '#839496', '#268bd2', ['#859900', '#2aa198', '#d33682', '#268bd2', '#b58900'], {
+    ansi: ['#073642', '#dc322f', '#859900', '#b58900', '#268bd2', '#d33682', '#2aa198', '#eee8d5', '#002b36', '#cb4b16', '#586e75', '#657b83', '#839496', '#6c71c4', '#93a1a1', '#fdf6e3'],
+    over: { com: '#586e75', op: '#93a1a1', tag: '#268bd2', attr: '#b58900', const: '#d33682', panel: '#00252e', panel2: '#073642', elev: '#0a3d4a' },
+  }),
+  T('solarized-light', 'Solarized Light', false, '#fdf6e3', '#586e75', '#268bd2', ['#859900', '#2aa198', '#d33682', '#268bd2', '#b58900'], {
+    ansi: ['#073642', '#dc322f', '#859900', '#b58900', '#268bd2', '#d33682', '#2aa198', '#eee8d5', '#002b36', '#cb4b16', '#586e75', '#657b83', '#839496', '#6c71c4', '#93a1a1', '#fdf6e3'],
+    over: { com: '#93a1a1', op: '#657b83', tag: '#268bd2', attr: '#b58900', const: '#d33682', panel: '#eee8d5', panel2: '#e4ddc8', elev: '#fdf6e3' },
+  }),
+  T('gruvbox-dark', 'Gruvbox Dark', true, '#282828', '#ebdbb2', '#fabd2f', ['#fb4934', '#b8bb26', '#d3869b', '#fabd2f', '#83a598'], {
+    ansi: ['#282828', '#cc241d', '#98971a', '#d79921', '#458588', '#b16286', '#689d6a', '#a89984', '#928374', '#fb4934', '#b8bb26', '#fabd2f', '#83a598', '#d3869b', '#8ec07c', '#ebdbb2'],
+    over: { com: '#928374', op: '#fabd2f', tag: '#fb4934', attr: '#fabd2f', const: '#d3869b', panel: '#1d2021', panel2: '#32302f', elev: '#3c3836' },
+  }),
+  T('gruvbox-light', 'Gruvbox Light', false, '#fbf1c7', '#3c3836', '#b57614', ['#9d0006', '#79740e', '#8f3f71', '#b57614', '#076678'], {
+    ansi: ['#fbf1c7', '#cc241d', '#98971a', '#d79921', '#458588', '#b16286', '#689d6a', '#7c6f64', '#928374', '#9d0006', '#79740e', '#b57614', '#076678', '#8f3f71', '#427b58', '#3c3836'],
+    over: { com: '#928374', op: '#b57614', tag: '#9d0006', attr: '#b57614', const: '#8f3f71', panel: '#f2e5bc', panel2: '#ebdbb2', elev: '#fbf1c7' },
+  }),
+  T('monokai', 'Monokai', true, '#272822', '#f8f8f2', '#a6e22e', ['#f92672', '#e6db74', '#ae81ff', '#a6e22e', '#66d9ef'], {
+    ansi: ['#272822', '#f92672', '#a6e22e', '#f4bf75', '#66d9ef', '#ae81ff', '#a1efe4', '#f8f8f2', '#75715e', '#f92672', '#a6e22e', '#f4bf75', '#66d9ef', '#ae81ff', '#a1efe4', '#f9f8f5'],
+    over: { com: '#75715e', op: '#f92672', tag: '#f92672', attr: '#a6e22e', const: '#ae81ff', panel: '#1e1f1c', panel2: '#34352d', elev: '#3e3d32' },
+  }),
+  T('monokai-pro', 'Monokai Pro', true, '#2d2a2e', '#fcfcfa', '#ffd866', ['#ff6188', '#ffd866', '#ab9df2', '#a9dc76', '#78dce8'], {
+    ansi: ['#2d2a2e', '#ff6188', '#a9dc76', '#ffd866', '#78dce8', '#ab9df2', '#78dce8', '#fcfcfa', '#727072', '#ff6188', '#a9dc76', '#ffd866', '#78dce8', '#ab9df2', '#a9dc76', '#fcfcfa'],
+    over: { com: '#727072', op: '#ff6188', tag: '#ff6188', attr: '#a9dc76', const: '#ab9df2', panel: '#221f22', panel2: '#3a373b', elev: '#403e41' },
+  }),
+  T('material-dark', 'Material Dark', true, '#263238', '#eeffff', '#82aaff', ['#c792ea', '#c3e88d', '#f78c6c', '#82aaff', '#ffcb6b'], {
+    ansi: ['#263238', '#ff5370', '#c3e88d', '#ffcb6b', '#82aaff', '#c792ea', '#89ddff', '#eeffff', '#546e7a', '#ff5370', '#c3e88d', '#ffcb6b', '#82aaff', '#c792ea', '#89ddff', '#ffffff'],
+    over: { com: '#546e7a', op: '#89ddff', tag: '#f07178', attr: '#ffcb6b', const: '#f78c6c', panel: '#1e272c', panel2: '#2f3d44', elev: '#37474f' },
+  }),
   T('material-ocean', 'Material Ocean', true, '#0f111a', '#8f93a2', '#84ffff', ['#c792ea', '#c3e88d', '#f78c6c', '#82aaff', '#ffcb6b']),
   T('material-lighter', 'Material Lighter', false, '#fafafa', '#90a4ae', '#2979ff', ['#7c4dff', '#91b859', '#f76d47', '#6182b8', '#e2931d']),
   T('github-light', 'GitHub Light', false, '#ffffff', '#1f2328', '#0969da', ['#cf222e', '#0a3069', '#0550ae', '#8250df', '#116329']),
-  T('github-dark', 'GitHub Dark', true, '#0d1117', '#c9d1d9', '#58a6ff', ['#ff7b72', '#a5d6ff', '#79c0ff', '#d2a8ff', '#7ee787']),
-  T('tokyo-night', 'Tokyo Night', true, '#1a1b26', '#c0caf5', '#7aa2f7', ['#bb9af7', '#9ece6a', '#ff9e64', '#7aa2f7', '#2ac3de']),
-  T('tokyo-night-storm', 'Tokyo Night Storm', true, '#24283b', '#c0caf5', '#7aa2f7', ['#bb9af7', '#9ece6a', '#ff9e64', '#7aa2f7', '#2ac3de']),
+  T('github-dark', 'GitHub Dark', true, '#0d1117', '#c9d1d9', '#58a6ff', ['#ff7b72', '#a5d6ff', '#79c0ff', '#d2a8ff', '#7ee787'], {
+    ansi: ['#484f58', '#ff7b72', '#3fb950', '#d29922', '#58a6ff', '#bc8cff', '#39c5cf', '#b1bac4', '#6e7681', '#ffa198', '#56d364', '#e3b341', '#79c0ff', '#d2a8ff', '#56d4dd', '#f0f6fc'],
+    over: { com: '#8b949e', op: '#ff7b72', tag: '#7ee787', attr: '#79c0ff', const: '#79c0ff', panel: '#010409', panel2: '#161b22', elev: '#21262d' },
+  }),
+  T('tokyo-night', 'Tokyo Night', true, '#1a1b26', '#c0caf5', '#7aa2f7', ['#bb9af7', '#9ece6a', '#ff9e64', '#7aa2f7', '#2ac3de'], {
+    ansi: ['#414868', '#f7768e', '#9ece6a', '#e0af68', '#7aa2f7', '#bb9af7', '#7dcfff', '#a9b1d6', '#414868', '#f7768e', '#9ece6a', '#e0af68', '#7aa2f7', '#bb9af7', '#7dcfff', '#c0caf5'],
+    over: { com: '#565f89', op: '#89ddff', tag: '#f7768e', attr: '#73daca', const: '#ff9e64', panel: '#16161e', panel2: '#1f2335', elev: '#292e42' },
+  }),
+  T('tokyo-night-storm', 'Tokyo Night Storm', true, '#24283b', '#c0caf5', '#7aa2f7', ['#bb9af7', '#9ece6a', '#ff9e64', '#7aa2f7', '#2ac3de'], {
+    ansi: ['#414868', '#f7768e', '#9ece6a', '#e0af68', '#7aa2f7', '#bb9af7', '#7dcfff', '#a9b1d6', '#414868', '#f7768e', '#9ece6a', '#e0af68', '#7aa2f7', '#bb9af7', '#7dcfff', '#c0caf5'],
+    over: { com: '#565f89', op: '#89ddff', tag: '#f7768e', attr: '#73daca', const: '#ff9e64', panel: '#1b1e2d', panel2: '#292e42', elev: '#343b58' },
+  }),
   T('rose-pine', 'Rosé Pine', true, '#191724', '#e0def4', '#c4a7e7', ['#c4a7e7', '#f6c177', '#eb6f92', '#9ccfd8', '#c4a7e7']),
   T('rose-pine-moon', 'Rosé Pine Moon', true, '#232136', '#e0def4', '#c4a7e7', ['#c4a7e7', '#f6c177', '#ea9a97', '#9ccfd8', '#c4a7e7']),
   T('rose-pine-dawn', 'Rosé Pine Dawn', false, '#faf4ed', '#575279', '#907aa9', ['#907aa9', '#ea9d34', '#d7827e', '#56949f', '#286983']),
   T('catppuccin-latte', 'Catppuccin Latte', false, '#eff1f5', '#4c4f69', '#1e66f5', ['#8839ef', '#40a02b', '#fe640b', '#1e66f5', '#df8e1d']),
   T('catppuccin-frappe', 'Catppuccin Frappé', true, '#303446', '#c6d0f5', '#8caaee', ['#ca9ee6', '#a6d189', '#ef9f76', '#8caaee', '#e5c890']),
   T('catppuccin-macchiato', 'Catppuccin Macchiato', true, '#24273a', '#cad3f5', '#8aadf4', ['#c6a0f6', '#a6da95', '#f5a97f', '#8aadf4', '#eed49f']),
-  T('catppuccin-mocha', 'Catppuccin Mocha', true, '#1e1e2e', '#cdd6f4', '#89b4fa', ['#cba6f7', '#a6e3a1', '#fab387', '#89b4fa', '#f9e2af']),
+  T('catppuccin-mocha', 'Catppuccin Mocha', true, '#1e1e2e', '#cdd6f4', '#89b4fa', ['#cba6f7', '#a6e3a1', '#fab387', '#89b4fa', '#f9e2af'], {
+    ansi: ['#45475a', '#f38ba8', '#a6e3a1', '#f9e2af', '#89b4fa', '#f5c2e7', '#94e2d5', '#bac2de', '#585b70', '#f38ba8', '#a6e3a1', '#f9e2af', '#89b4fa', '#f5c2e7', '#94e2d5', '#a6adc8'],
+    over: { com: '#6c7086', op: '#89dceb', tag: '#f38ba8', attr: '#a6e3a1', const: '#fab387', panel: '#181825', panel2: '#313244', elev: '#45475a' },
+  }),
   T('night-owl', 'Night Owl', true, '#011627', '#d6deeb', '#82aaff', ['#c792ea', '#ecc48d', '#f78c6c', '#82aaff', '#ffcb8b']),
   T('light-owl', 'Light Owl', false, '#fbfbfb', '#403f53', '#4876d6', ['#994cc3', '#c96765', '#aa0982', '#4876d6', '#0c969b']),
   T('ayu-dark', 'Ayu Dark', true, '#0b0e14', '#bfbdb6', '#e6b450', ['#ff8f40', '#aad94c', '#d2a6ff', '#ffb454', '#59c2ff']),
@@ -98,8 +156,14 @@ export const THEMES: ThemeDef[] = [
   T('tokyo-night-light', 'Tokyo Night Light', false, '#d5d6db', '#343b58', '#34548a', ['#5a4a78', '#485e30', '#965027', '#34548a', '#0f4b6e']),
   T('everforest', 'Everforest', true, '#2d353b', '#d3c6aa', '#a7c080', ['#e67e80', '#a7c080', '#d699b6', '#7fbbb3', '#dbbc7f']),
   T('spacegray', 'Spacegray', true, '#20242d', '#b3b8c6', '#7aa2f7', ['#b48ead', '#a3be8c', '#d08770', '#8fa1b3', '#ebcb8b']),
-  T('atom-dark', 'Atom Dark', true, '#282c34', '#abb2bf', '#61afef', ['#c678dd', '#98c379', '#d19a66', '#61afef', '#e5c07b']),
-  T('atom-light', 'Atom Light', false, '#ffffff', '#383a42', '#4078f2', ['#a626a4', '#50a14f', '#986801', '#4078f2', '#c18401']),
+  T('atom-dark', 'Atom Dark', true, '#282c34', '#abb2bf', '#61afef', ['#c678dd', '#98c379', '#d19a66', '#61afef', '#e5c07b'], {
+    ansi: ['#282c34', '#e06c75', '#98c379', '#e5c07b', '#61afef', '#c678dd', '#56b6c2', '#abb2bf', '#5c6370', '#e06c75', '#98c379', '#e5c07b', '#61afef', '#c678dd', '#56b6c2', '#ffffff'],
+    over: { com: '#5c6370', op: '#56b6c2', tag: '#e06c75', attr: '#d19a66', const: '#d19a66', panel: '#21252b', panel2: '#2f343d', elev: '#333842' },
+  }),
+  T('atom-light', 'Atom Light', false, '#ffffff', '#383a42', '#4078f2', ['#a626a4', '#50a14f', '#986801', '#4078f2', '#c18401'], {
+    ansi: ['#383a42', '#e45649', '#50a14f', '#c18401', '#4078f2', '#a626a4', '#0184bc', '#a0a1a7', '#696c77', '#e45649', '#50a14f', '#c18401', '#4078f2', '#a626a4', '#0184bc', '#ffffff'],
+    over: { com: '#a0a1a7', op: '#0184bc', tag: '#e45649', attr: '#986801', const: '#986801', panel: '#f0f0f1', panel2: '#e5e5e6', elev: '#ffffff' },
+  }),
   T('xcode-dark', 'Xcode Dark', true, '#292a30', '#dfdfe0', '#5dd8ff', ['#fc5fa3', '#fc6a5d', '#d0bf69', '#67b7a4', '#5dd8ff']),
   T('mariana', 'Mariana', true, '#343d46', '#d8dee9', '#6699cc', ['#c695c6', '#99c794', '#f9ae58', '#6699cc', '#fac761']),
 
@@ -231,11 +295,13 @@ export function applyTheme(id: string, iconSet = currentIconSet): void {
   document.documentElement.dataset.theme = t.dark ? 'dark' : 'light'
 
   const dark = t.dark
-  const panel = mix(t.bg, t.fg, dark ? 0.045 : 0.035)
-  const panel2 = mix(t.bg, t.fg, dark ? 0.10 : 0.075)
-  const elev = dark ? mix(t.bg, t.fg, 0.13) : '#ffffff'
-  const fg2 = mix(t.fg, t.bg, dark ? 0.30 : 0.24)
-  const fg3 = mix(t.fg, t.bg, dark ? 0.52 : 0.40)
+  const o = t.over ?? {}
+  // 有原版配色就照搬，没有才按底色推导
+  const panel = o.panel ?? mix(t.bg, t.fg, dark ? 0.045 : 0.035)
+  const panel2 = o.panel2 ?? mix(t.bg, t.fg, dark ? 0.10 : 0.075)
+  const elev = o.elev ?? (dark ? mix(t.bg, t.fg, 0.13) : '#ffffff')
+  const fg2 = o.fg2 ?? mix(t.fg, t.bg, dark ? 0.30 : 0.24)
+  const fg3 = o.fg3 ?? mix(t.fg, t.bg, dark ? 0.52 : 0.40)
   const [kw, str, num, fn, type] = t.syn
 
   const style = document.documentElement.style
@@ -258,20 +324,47 @@ export function applyTheme(id: string, iconSet = currentIconSet): void {
   set('--syn-kw', kw)
   set('--syn-str', str)
   set('--syn-num', num)
-  set('--syn-com', mix(t.fg, t.bg, 0.45))
+  set('--syn-com', o.com ?? mix(t.fg, t.bg, 0.5))
   set('--syn-fn', fn)
   set('--syn-type', type)
   set('--syn-var', t.fg)
-  set('--syn-op', mix(t.accent, t.fg, 0.35))
-  set('--syn-tag', kw)
-  set('--syn-attr', type)
-  set('--syn-const', num)
+  set('--syn-op', o.op ?? mix(t.accent, t.fg, 0.35))
+  set('--syn-tag', o.tag ?? kw)
+  set('--syn-attr', o.attr ?? type)
+  set('--syn-const', o.const ?? num)
   set('--shadow', dark
     ? '0 16px 48px rgba(0,0,0,.5), 0 2px 8px rgba(0,0,0,.4)'
     : '0 10px 30px rgba(0,0,0,.08), 0 1px 4px rgba(0,0,0,.05)')
   style.colorScheme = dark ? 'dark' : 'light'
 
   applyIconSet(iconSet, t)
+}
+
+/**
+ * 终端 16 色 ANSI 调色板。
+ * 有原版配色的主题直接用；其余按主题底色/强调色推导，
+ * 避免回落到 xterm.js 默认的经典红绿蓝（和任何主题都不搭）。
+ */
+export function ansiPalette(t: ThemeDef = currentTheme()): string[] {
+  if (t.ansi) return t.ansi
+  const dark = t.dark
+  const adj = (c: string) => (dark ? c : mix(c, '#000000', 0.18))
+  const [kw] = t.syn
+  const black = dark ? mix(t.bg, t.fg, 0.18) : mix(t.fg, t.bg, 0.30)
+  const white = t.fg
+  const red = adj('#e06c75')
+  const green = adj('#98c379')
+  const yellow = adj('#e5c07b')
+  const blue = adj(t.accent)
+  const magenta = adj(kw)
+  const cyan = adj('#56b6c2')
+  const brightBlack = mix(t.fg, t.bg, dark ? 0.55 : 0.45)
+  const lift = (c: string) => (dark ? mix(c, '#ffffff', 0.18) : mix(c, '#ffffff', 0.1))
+  return [
+    black, red, green, yellow, blue, magenta, cyan, white,
+    brightBlack, lift(red), lift(green), lift(yellow), lift(blue), lift(magenta), lift(cyan),
+    dark ? '#ffffff' : mix(t.fg, '#000000', 0.15),
+  ]
 }
 
 export function isDark(id: string): boolean {

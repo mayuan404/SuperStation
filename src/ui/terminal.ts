@@ -8,6 +8,7 @@ import * as S from '../lib/store'
 import { el } from '../lib/dom'
 import { icon } from '../lib/icons'
 import { closeQuickCommandPicker, openQuickCommandManager, openQuickCommandPicker } from './quickcmd'
+import { ansiPalette } from './theme'
 
 /** 终端字体栈：用户没选就用内置的（macOS / Windows 各自的等宽字体） */
 export const TERM_FONTS: { id: string; label: string; stack: string }[] = [
@@ -52,6 +53,32 @@ function publishTermState(id: string, s: TermState): void {
 const liveSessions = new Set<TermSession>()
 export function applyTerminalFont(): void {
   for (const t of liveSessions) t.applyFont()
+}
+
+/** 由当前主题的 CSS 变量 + ANSI 调色板构造 xterm 主题，切主题时也复用 */
+export function terminalTheme(): Record<string, string> {
+  const bg = cssVar('--bg', '#ffffff')
+  const fg = cssVar('--fg', '#1d1d1f')
+  const accent = cssVar('--accent', '#3b82f6')
+  const sel = cssVar('--accent-soft', 'rgba(59,130,246,.25)')
+  const p = ansiPalette()
+  return {
+    background: bg,
+    foreground: fg,
+    cursor: accent,
+    cursorAccent: bg,
+    selectionBackground: sel,
+    black: p[0], red: p[1], green: p[2], yellow: p[3],
+    blue: p[4], magenta: p[5], cyan: p[6], white: p[7],
+    brightBlack: p[8], brightRed: p[9], brightGreen: p[10], brightYellow: p[11],
+    brightBlue: p[12], brightMagenta: p[13], brightCyan: p[14], brightWhite: p[15],
+  }
+}
+
+/** 主题切换后刷新所有已打开终端的配色 */
+export function applyTerminalTheme(): void {
+  const theme = terminalTheme()
+  for (const t of liveSessions) t.applyTheme(theme)
 }
 
 export interface TermProfile {
@@ -147,11 +174,6 @@ export class TermSession {
     this.deps = deps
     publishTermState(docId, profile.kind === 'ssh' ? 'pending' : 'local')
 
-    const bg = cssVar('--bg', '#ffffff')
-    const fg = cssVar('--fg', '#1d1d1f')
-    const accent = cssVar('--accent', '#3b82f6')
-    const sel = cssVar('--accent-soft', 'rgba(59,130,246,.25)')
-
     const font = termFontConfig()
     this.term = new Terminal({
       fontFamily: font.family,
@@ -160,14 +182,7 @@ export class TermSession {
       scrollback: 8000,
       cursorBlink: true,
       allowProposedApi: true,
-      theme: {
-        background: bg,
-        foreground: fg,
-        cursor: accent,
-        selectionBackground: sel,
-        black: '#1c1c1e',
-        brightBlack: '#6b6b70'
-      }
+      theme: terminalTheme()
     })
     liveSessions.add(this)
     this.fit = new FitAddon()
@@ -485,6 +500,11 @@ export class TermSession {
   focus(): void { this.term.focus() }
 
   /** 设置里改了终端字体/字号后调用：xterm 支持热更新，顺手重新 fit 一次 */
+  /** 主题变更后刷新配色 */
+  applyTheme(theme: Record<string, string>): void {
+    this.term.options.theme = theme
+  }
+
   applyFont(): void {
     const font = termFontConfig()
     this.term.options.fontFamily = font.family
