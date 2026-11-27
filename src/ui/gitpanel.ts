@@ -255,7 +255,7 @@ export function mountGitPanel(host: HTMLElement, treePath: string, title: string
       tabHistory.textContent = '历史'
       tabChanges.classList.toggle('active', tab === 'changes')
       tabHistory.classList.toggle('active', tab === 'history')
-      commitBox.style.display = tab === 'changes' ? '' : 'none'
+      commitBox.hidden = tab !== 'changes'
       listHead.style.display = ''
     }
 
@@ -269,6 +269,7 @@ export function mountGitPanel(host: HTMLElement, treePath: string, title: string
 
     function paintChanges(): void {
       clear(list)
+      commitBox.hidden = tab !== 'changes'
       const n = status.files.length
       clear(listHead)
       const toggle = el('button', { class: 'git-link' }, n && selected.size === n ? '全不选' : '全选')
@@ -279,9 +280,11 @@ export function mountGitPanel(host: HTMLElement, treePath: string, title: string
       listHead.append(el('span', {}, `已选 ${selected.size} / ${n}`), el('div', { class: 'spacer' }), toggle)
 
       if (!n) {
+        list.classList.add('is-empty')
         list.append(el('div', { class: 'git-empty' }, '工作区干净，没有需要提交的改动'))
         return
       }
+      list.classList.remove('is-empty')
 
       for (const f of status.files) {
         const row = el('div', { class: 'git-row' + (f.path === activePath ? ' active' : '') })
@@ -340,6 +343,7 @@ export function mountGitPanel(host: HTMLElement, treePath: string, title: string
 
     function paintHistory(): void {
       clear(list)
+      list.classList.remove('is-empty')
       clear(listHead)
       const commits = log.filter((c) => c.hash)
       listHead.append(
@@ -376,9 +380,16 @@ export function mountGitPanel(host: HTMLElement, treePath: string, title: string
         list.append(row)
       }
       if (hasMoreHistory) {
-        const more = el('div', { class: 'git-more' }, '滚动加载更多…')
+        const more = el('div', { class: 'git-more' }, '加载更多…')
+        more.addEventListener('click', () => void loadMoreHistory())
         list.append(more)
       }
+      // 内容还没占满一屏时不会有滚动事件，主动再拉一页，直到填满或没有更多
+      requestAnimationFrame(() => {
+        if (tab === 'history' && hasMoreHistory && !historyBusy && list.scrollHeight <= list.clientHeight + 8) {
+          void loadMoreHistory()
+        }
+      })
     }
 
     async function showFileDiff(f: GitFile): Promise<void> {
