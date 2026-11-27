@@ -1596,21 +1596,44 @@ button:disabled,
   background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px;
 }
 
-/* Git 面板：整体作为 flex 列，拖动改变尺寸时内部跟着伸缩，不会出现
-   「提交框压在输出区上」这种溢出。 */
+/* Git 面板：标签页里用 .git-panel-root 铺满编辑区；弹窗只是它的外壳 */
+.git-pane { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.git-panel-root {
+  flex: 1 1 auto; min-height: 0;
+  display: flex; flex-direction: column;
+  padding: 10px 14px 12px;
+  overflow: hidden;
+}
+.git-panel-root .git-main { flex: 1 1 auto; min-height: 0; overflow: hidden; }
+.git-panel-root .git-list-area { flex: 1 1 auto; min-height: 140px; display: flex; flex-direction: column; }
+.git-panel-root .git-list { flex: 1 1 auto; min-height: 0; }
+.git-panel-root .git-commit { flex: 0 0 auto; }
+.git-panel-root .git-detail { flex: 0 0 auto; min-height: 120px; }
+.git-panel-root .git-foot[hidden] { display: none; }
+.git-out-wrap {
+  flex: 0 0 auto; min-height: 56px; display: flex; flex-direction: column;
+  border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--panel);
+}
+.git-out-head {
+  display: flex; align-items: center; gap: 8px; padding: 4px 8px;
+  font-size: 11px; color: var(--fg-3); border-bottom: 1px solid var(--line); flex: 0 0 auto;
+}
+.git-out-close {
+  height: 18px; padding: 0 7px; border-radius: 5px; border: 1px solid var(--line);
+  background: transparent; color: var(--fg-3); font: inherit; font-size: 11px; cursor: pointer;
+}
+.git-out-close:hover { color: var(--fg); background: var(--panel-2); }
+.git-out-wrap .git-out { flex: 1 1 auto; min-height: 0; overflow: auto; border: none; border-radius: 0; margin: 0; background: transparent; }
+.git-btn.on { color: var(--accent); border-color: var(--accent); }
+
 .modal.git-modal {
   display: flex; flex-direction: column;
   height: 82vh; min-height: 480px; max-height: 92vh;
 }
 .modal.git-modal .body {
-  flex: 1; min-height: 0; display: flex; flex-direction: column; padding-bottom: 12px;
+  flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 4px 0 6px;
 }
-.modal.git-modal .body > * { flex: 0 0 auto; }
-.modal.git-modal .git-main { flex: 1 1 auto; min-height: 0; }
-.modal.git-modal .git-list { flex: 1 1 auto; min-height: 64px; }
-.modal.git-modal .git-commit { flex: 0 0 auto; }
-.modal.git-modal .git-detail { flex: 0 0 auto; }
-.modal.git-modal .git-out-wrap { flex: 0 0 auto; }
+.modal.git-modal .git-panel-root { padding: 0; }
 
 /* 历史行里的 SVG 泳道图 */
 .git-row.hist { display: flex; align-items: center; gap: 8px; padding: 0 8px; }

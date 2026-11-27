@@ -21,6 +21,13 @@ export interface GitPanelOpts {
 }
 
 export function openGitPanel(treePath: string, title: string, opts: GitPanelOpts = {}): void {
+  openSheet(`Git · ${title}`, (body) => {
+    mountGitPanel(body, treePath, title, opts)
+  }, 1100, true, 'git-modal')
+}
+
+/** 把面板挂到任意容器：标签页里用这个，弹窗只是它的一个外壳 */
+export function mountGitPanel(host: HTMLElement, treePath: string, title: string, opts: GitPanelOpts = {}): void {
   let status: GitStatusParsed = { branch: '', ahead: 0, behind: 0, files: [] }
   let branches: GitBranch[] = []
   let log: GitCommit[] = []
@@ -30,7 +37,9 @@ export function openGitPanel(treePath: string, title: string, opts: GitPanelOpts
   let tab: 'changes' | 'history' = 'changes'
   let busy = false
 
-  openSheet(`Git · ${title}`, (body) => {
+  const body = host
+  body.classList.add('git-panel-root')
+  {
     /* ---------- 顶部 ---------- */
     const branchSel = el('select', { class: 'git-branch' }) as HTMLSelectElement
     const ab = el('div', { class: 'git-ab' })
@@ -70,28 +79,59 @@ export function openGitPanel(treePath: string, title: string, opts: GitPanelOpts
     const diffPre = el('pre', { class: 'git-diff' })
     const detail = el('div', { class: 'git-detail' }, diffName, diffPre)
 
-    /* ---------- 底：命令输出 ---------- */
+    /* ---------- 底：命令输出（抽屉，默认收起；看历史时不占地方） ---------- */
     const out = el('pre', { class: 'git-out' }, '尚未执行命令')
-    const outWrap = el('div', { class: 'git-out-wrap' }, out)
+    const outClose = el('button', { class: 'git-out-close', title: '收起输出' }, '收起')
+    const outHead = el('div', { class: 'git-out-head' },
+      el('span', {}, '命令输出'), el('div', { class: 'spacer' }), outClose)
+    const outWrap = el('div', { class: 'git-out-wrap' }, outHead, out)
 
-    const splitMain = el('div', { class: 'git-hsplit', title: '拖动调整上半部分高度' })
+    const splitMain = el('div', { class: 'git-hsplit', title: '拖动调整上下比例' })
     const splitOut = el('div', { class: 'git-hsplit', title: '拖动调整输出区高度' })
     const main = el('div', { class: 'git-main' }, listArea, splitMain, detail)
     const foot = el('div', { class: 'git-foot' }, splitOut, outWrap)
+    let outOpen = false
+    foot.hidden = true
+
+    // 顶部一个「输出」按钮，随时能把抽屉拉出来看最后一次结果
+    const outBtn = el('button', { class: 'git-btn', title: '查看命令输出' }, '输出')
+    head.insertBefore(outBtn, head.lastChild)
 
     body.append(head, main, foot)
 
+    const setOutOpen = (open: boolean): void => {
+      outOpen = open
+      foot.hidden = !open
+      outBtn.classList.toggle('on', open)
+      if (open) requestAnimationFrame(() => { outWrap.scrollTop = outWrap.scrollHeight })
+    }
+    outBtn.addEventListener('click', () => setOutOpen(!outOpen))
+    outClose.addEventListener('click', () => setOutOpen(false))
+
     /* ---------- 两处可拖拽分割线 ---------- */
-    // 按窗口高度取比例：小窗口下别让详情把列表挤没
-    let detailH = Math.max(150, Math.min(320, Math.round(window.innerHeight * 0.30)))
-    let outH = Math.max(120, Math.min(240, Math.round(window.innerHeight * 0.17)))
+    // 详情/输出的初始高度按窗口估，挂载后再用实测可用高度钳一次
+    let detailH = Math.max(150, Math.min(320, Math.round(window.innerHeight * 0.26)))
+    let outH = Math.max(120, Math.min(240, Math.round(window.innerHeight * 0.16)))
+    const LIST_MIN = 140
     const maxFor = (px: number): number => Math.max(120, Math.min(px, Math.round(window.innerHeight * 0.62)))
     const applySizes = (): void => {
       detail.style.height = `${detailH}px`
       outWrap.style.height = `${outH}px`
     }
+    const clampDetail = (): void => {
+      const mainH = main.clientHeight
+      if (!mainH) return
+      // 至少给列表留 LIST_MIN，详情不许把主区撑破（撑破就会被 overflow 裁掉）
+      const maxDetail = Math.max(120, mainH - LIST_MIN - 14)
+      if (detailH > maxDetail) {
+        detailH = maxDetail
+        detail.style.height = `${detailH}px`
+      }
+    }
     detail.style.height = `${detailH}px`
     outWrap.style.height = `${outH}px`
+    requestAnimationFrame(clampDetail)
+    window.addEventListener('resize', clampDetail)
     function draggable(handle: HTMLElement, size: () => number, apply: (v: number) => void): void {
       handle.addEventListener('mousedown', (ev) => {
         ev.preventDefault()
@@ -131,6 +171,7 @@ export function openGitPanel(treePath: string, title: string, opts: GitPanelOpts
     async function run(promise: Promise<GitRun> | Promise<GitRun[]>, doneMsg: string, reportDivergence = false): Promise<void> {
       busy = true
       commitBtn.setAttribute('disabled', '')
+      setOutOpen(true)
       setOutput({ cmd: '执行中…', code: 0, stdout: '', stderr: '' })
       const res = await promise
       const arr = Array.isArray(res) ? res : [res]
@@ -209,7 +250,7 @@ export function openGitPanel(treePath: string, title: string, opts: GitPanelOpts
       tabChanges.classList.toggle('active', tab === 'changes')
       tabHistory.classList.toggle('active', tab === 'history')
       commitBox.style.display = tab === 'changes' ? '' : 'none'
-      listHead.style.display = tab === 'changes' ? '' : 'none'
+      listHead.style.display = ''
     }
 
     function paintLast(): void {
@@ -357,6 +398,7 @@ export function openGitPanel(treePath: string, title: string, opts: GitPanelOpts
     })
 
     void refresh()
-    setTimeout(() => msg.focus(), 60)
-  }, 900, true, 'git-modal')
+    // 只有「变更」页且提交框可见时才抢焦点（历史页里它是隐藏的）
+    setTimeout(() => { if (tab === 'changes') msg.focus() }, 60)
+  }
 }

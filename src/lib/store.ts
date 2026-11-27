@@ -32,6 +32,10 @@ export interface Doc {
   detail?: string
   /** 终端会话的颜色点 */
   color?: string
+  /** kind === 'git' 时：这个标签对应哪个仓库 */
+  gitPath?: string
+  /** kind === 'git' 时：面板标题（仓库名） */
+  gitTitle?: string
 }
 
 export interface Settings {
@@ -321,6 +325,41 @@ export function openBrowserTab(): Doc {
     issues: [],
     checked: false,
     locked: false
+  }
+  state.docs.push(doc)
+  setActive(doc.id)
+  return doc
+}
+
+const GIT_TAB_PREFIX = 'git:'
+
+/** Git 面板作为标签页打开：比弹窗多出整块编辑区，能同时看列表和 diff */
+export function openGitTab(treePath: string, title: string): Doc {
+  const id = GIT_TAB_PREFIX + treePath
+  const existing = state.docs.find((d) => d.id === id)
+  if (existing) {
+    setActive(existing.id)
+    return existing
+  }
+  const doc: Doc = {
+    id,
+    path: '',
+    name: `Git · ${title}`,
+    ext: '',
+    kind: 'git',
+    editable: false,
+    text: '',
+    saved: '',
+    dirty: false,
+    view: 'preview',
+    encrypted: false,
+    mtime: 0,
+    size: 0,
+    issues: [],
+    checked: false,
+    locked: false,
+    gitPath: treePath,
+    gitTitle: title
   }
   state.docs.push(doc)
   setActive(doc.id)

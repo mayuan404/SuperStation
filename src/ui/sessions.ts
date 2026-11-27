@@ -7,7 +7,6 @@ import { openSheet, contextMenu, toast, prompt } from './overlays'
 import { remoteRootPath } from './sidebar'
 import { TermSession, type TermProfile } from './terminal'
 import { RemotePanel, uploadFilesToDir } from './remote'
-import { openGitPanel } from './gitpanel'
 import { ctx } from '../lib/ctx'
 import { basename, dirname } from '../lib/files'
 
@@ -188,9 +187,7 @@ export function remoteRootMenu(path: string, ev: MouseEvent): void {
   contextMenu(ev.clientX, ev.clientY, [
     { label: '刷新', icon: 'refresh', onClick: () => { ctx.sidebar?.invalidate(path); ctx.sidebar?.refresh() } },
     { sep: true },
-    { label: 'Git 面板…', icon: 'git', onClick: () => openGitPanel(path, root.name, {
-      openTerminal: () => openTerminal({ id: root.secretId || 'tmp', name: root.name, kind: 'ssh', host: root.host, port: root.port, user: root.user, remotePath: root.path, hasPassword: !!root.secretId })
-    }) },
+    { label: 'Git 面板（新标签页）', icon: 'git', onClick: () => { S.openGitTab(path, root.name) } },
     { label: '获取 git fetch', icon: 'refresh', onClick: () => gitAction(root, 'fetch') },
     { label: '拉取 git pull', icon: 'arrow-left', onClick: () => gitAction(root, 'pull') },
     { label: '推送 git push', icon: 'external', onClick: () => gitAction(root, 'push') },

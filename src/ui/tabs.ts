@@ -61,6 +61,7 @@ export function renderTabs(host: HTMLElement, docs: Doc[], activeId: string | nu
     else if (doc.kind === 'sftp') ic.append(icon('external'))
     else if (doc.kind === 'browser') ic.append(icon('disk'))
     else if (doc.kind === 'cosmos') ic.append(icon('star'))
+    else if (doc.kind === 'git') ic.append(icon('git'))
     else ic.append(fileIcon(doc.ext))
     // 标签页保持单色图标：彩色扩展名图标只留给文件树，避免顶栏过于花。
     tab.append(ic, el('div', { class: 'nm' }, doc.name))

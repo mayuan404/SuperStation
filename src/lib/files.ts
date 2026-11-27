@@ -1,4 +1,4 @@
-export type DocKind = 'text' | 'md' | 'csv' | 'html' | 'json' | 'image' | 'pdf' | 'video' | 'audio' | 'epub' | 'office' | 'browser' | 'terminal' | 'sftp' | 'binary' | 'cosmos'
+export type DocKind = 'text' | 'md' | 'csv' | 'html' | 'json' | 'image' | 'pdf' | 'video' | 'audio' | 'epub' | 'office' | 'browser' | 'terminal' | 'sftp' | 'binary' | 'cosmos' | 'git'
 
 const IMAGE = new Set(['png', 'jpg', 'jpeg', 'jfif', 'gif', 'webp', 'avif', 'bmp', 'ico', 'svg', 'tif', 'tiff', 'heic', 'heif', 'apng'])
 const VIDEO = new Set(['mp4', 'webm', 'mov', 'm4v'])

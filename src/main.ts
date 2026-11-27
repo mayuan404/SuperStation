@@ -70,6 +70,7 @@ function installCursorBridge(): void {
 }
 import { terminalMenu, openTerminalMenuAtCenter, registerRemoteRoots, addRemoteRoot, removeRemoteRoot, remoteRootMenu, gitAction, sshForm, openTerminal, openRemote, remoteSaveQueue } from './ui/sessions'
 import { TermSession, applyTerminalFont, applyTerminalTheme, type TermProfile } from './ui/terminal'
+import { mountGitPanel } from './ui/gitpanel'
 import { Sidebar, type Entry } from './ui/sidebar'
 import { renderTabs } from './ui/tabs'
 import { termStates, subscribeTermState } from './ui/terminal'
@@ -251,8 +252,9 @@ function buildShell(): void {
   previewSearch = new PreviewSearch(ui.previewPane)
   ui.lockHost = el('div', { class: 'lock', style: { flex: '1', display: 'none' } })
   ui.cosmosHost = el('div', { class: 'cosmos-host' })
+  ui.gitHost = el('div', { class: 'pane git-pane', style: { display: 'none' } })
 
-  const panes = el('div', { class: 'panes' }, ui.emptyHost, ui.editorPane, ui.previewPane, ui.lockHost, ui.cosmosHost)
+  const panes = el('div', { class: 'panes' }, ui.emptyHost, ui.editorPane, ui.previewPane, ui.lockHost, ui.cosmosHost, ui.gitHost)
   ui.panes = panes
   ui.statusbar = el('footer', { class: 'statusbar' })
   const workspace = el('section', { class: 'workspace' }, ui.tabbar, panes, ui.statusbar)
@@ -644,6 +646,23 @@ async function closeTab(id: string): Promise<void> {
   if (!ok) toast('标签页已锁定，右键解锁后再关闭')
 }
 
+// Git 标签页：每个仓库一个面板，切走再切回来状态保留
+const gitTabs = new Map<string, HTMLElement>()
+
+function mountGitTab(doc: Doc): void {
+  for (const id of Array.from(gitTabs.keys())) {
+    if (!S.state.docs.some((d) => d.id === id)) {
+      gitTabs.get(id)?.remove()
+      gitTabs.delete(id)
+    }
+  }
+  if (gitTabs.has(doc.id)) return
+  const box = el('div', { class: 'git-panel-root' })
+  ui.gitHost.append(box)
+  gitTabs.set(doc.id, box)
+  mountGitPanel(box, doc.gitPath ?? '', doc.gitTitle ?? doc.name)
+}
+
 function syncActive(): void {
   const doc = S.activeDoc()
   renderTabsBar()
@@ -652,6 +671,8 @@ function syncActive(): void {
   const isCosmos = doc?.kind === 'cosmos'
   const isTerm = doc?.kind === 'terminal'
   const isRemote = doc?.kind === 'sftp'
+  const isGit = doc?.kind === 'git'
+  if (ui.gitHost) ui.gitHost.style.display = 'none'
   if (remoteHost) {
     remoteHost.style.display = isRemote ? 'flex' : 'none'
     // 必须用 ctx.remotePanels：openRemote() 把新面板写进 ctx.remotePanels，
@@ -674,6 +695,22 @@ function syncActive(): void {
   if (termHost) {
     termHost.style.display = isTerm ? 'flex' : 'none'
     for (const [id, t] of terminals) t.el.style.display = id === doc?.id ? 'flex' : 'none'
+  }
+  if (isGit && doc) {
+    if (browser?.visible()) browser.hide()
+    if (termHost) termHost.style.display = 'none'
+    ui.editorPane.classList.add('hidden')
+    ui.previewPane.classList.add('hidden')
+    ui.emptyHost.classList.add('hidden')
+    ui.lockHost.style.display = 'none'
+    ui.viewSwitch.style.display = 'none'
+    aiPanel.el.style.display = 'none'
+    ui.gitHost.style.display = 'flex'
+    mountGitTab(doc)
+    updateTreeActive()
+    renderStatus()
+    renderTitle()
+    return
   }
   if (isTerm) {
     if (browser?.visible()) browser.hide()
