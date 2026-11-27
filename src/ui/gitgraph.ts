@@ -27,6 +27,12 @@ export function layoutGraph<T extends GraphCommit>(commits: T[]): GraphRow<T>[] 
   const lanes: (string | null)[] = []
   const rows: GraphRow<T>[] = []
 
+  // 关键：只保留「已加载窗口里真的会出现」的车道。
+  // 以前父提交不管在不在窗口内都占一条车道，`--all` + 分页加载之后
+  // 车道只会越积越多（30 条时 10 条，630 条时上百条），图宽把文字列挤没了。
+  const known = new Set(commits.map((c) => c.hash))
+  const MAX_LANES = 12
+
   for (const commit of commits) {
     let lane = lanes.indexOf(commit.hash)
     if (lane < 0) {
@@ -35,7 +41,7 @@ export function layoutGraph<T extends GraphCommit>(commits: T[]): GraphRow<T>[] 
     }
 
     const before = lanes.slice()
-    const parents = commit.parents.filter(Boolean)
+    const parents = commit.parents.filter((h) => known.has(h))
     const first = parents[0] ?? null
     lanes[lane] = first
 
@@ -44,10 +50,12 @@ export function layoutGraph<T extends GraphCommit>(commits: T[]): GraphRow<T>[] 
       let j = lanes.indexOf(p)
       if (j < 0) {
         j = lanes.indexOf(null)
-        if (j < 0) { j = lanes.length; lanes.push(null) }
+        if (j < 0 && lanes.length < MAX_LANES) { j = lanes.length; lanes.push(null) }
+        // 车道数到上限就不再新增，多余的合并线并到最右一条，保证图不无限变宽
+        if (j < 0) j = MAX_LANES - 1
         lanes[j] = p
       }
-      mergeTo.push(j)
+      if (j !== lane && !mergeTo.includes(j)) mergeTo.push(j)
     }
 
     const after = lanes.slice()
@@ -62,7 +70,7 @@ export function layoutGraph<T extends GraphCommit>(commits: T[]): GraphRow<T>[] 
 export function laneCount<T extends GraphCommit>(rows: GraphRow<T>[]): number {
   let n = 1
   for (const r of rows) n = Math.max(n, r.before.length, r.after.length, r.lane + 1, ...(r.mergeTo.length ? [Math.max(...r.mergeTo) + 1] : [0]))
-  return n
+  return Math.min(n, 12)
 }
 
 export function graphWidth<T extends GraphCommit>(rows: GraphRow<T>[]): number {

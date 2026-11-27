@@ -1728,9 +1728,9 @@ button:disabled,
 
 /* 历史行里的 SVG 泳道图 */
 .git-row.hist { display: flex; align-items: center; gap: 8px; padding: 0 8px; }
-.git-row.hist svg.git-graph { flex: 0 0 auto; display: block; overflow: visible; }
+.git-row.hist svg.git-graph { flex: 0 0 auto; display: block; overflow: hidden; max-width: 200px; }
 .git-row.hist .git-hash { flex: 0 0 auto; }
-.git-row.hist .nm { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.git-row.hist .nm { flex: 1 1 auto; min-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .git-row.hist .git-when { flex: 0 0 auto; min-width: 64px; text-align: right; }
 .git-more { padding: 10px; text-align: center; font-size: 11.5px; color: var(--fg-3); }
 

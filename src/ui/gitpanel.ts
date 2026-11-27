@@ -332,7 +332,7 @@ export function mountGitPanel(host: HTMLElement, treePath: string, title: string
       const keep = list.scrollTop
       const foot = list.querySelector('.git-more')
       if (foot) foot.textContent = '加载中…'
-      historyLimit += PAGE
+      historyLimit = Math.min(historyLimit * 2, 2000)
       const rows = await readLog(treePath, historyLimit)
       log = rows
       hasMoreHistory = rows.filter((c) => c.hash).length >= historyLimit
