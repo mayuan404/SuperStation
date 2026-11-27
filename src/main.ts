@@ -499,7 +499,26 @@ function tabSignature(): string {
 let blameTimer = 0
 let blameSeq = 0
 const blameCache = new Map<string, { at: number; info: BlameInfo | null }>()
-const repoRootCache = new Map<string, string | null>()
+// 只缓存「成功找到的仓库根」，并且带过期时间。
+// 以前这里连 null 一起缓存：启动时 remote.register 还是异步的，第一次 blame 必然
+// 拿到「远端会话未注册」→ 把 null 永久记在这个目录上，那棵目录之后的 blame 全部失效，
+// 表现就是「有的仓库一直不显示、有的正常」。
+const repoRootCache = new Map<string, { root: string; at: number }>()
+const REPO_ROOT_TTL = 10 * 60_000
+
+async function repoRootCached(dir: string): Promise<string | null> {
+  const hit = repoRootCache.get(dir)
+  if (hit && Date.now() - hit.at < REPO_ROOT_TTL) return hit.root
+  let root = await repoRootOf(dir)
+  if (!root) {
+    // 会话可能刚启动还没注册完，等一下重试一次；仍失败就返回 null 且**不写缓存**
+    await new Promise((r) => setTimeout(r, 800))
+    root = await repoRootOf(dir)
+  }
+  if (!root) return null
+  repoRootCache.set(dir, { root, at: Date.now() })
+  return root
+}
 
 function agoText(ts: number): string {
   if (!ts) return ''
@@ -521,8 +540,7 @@ function absolutePathOf(p: string): string {
 async function blameFor(doc: Doc, line: number): Promise<BlameInfo | null> {
   if (!doc.path || !doc.editable) return null
   const dir = dirname(doc.path)
-  if (!repoRootCache.has(dir)) repoRootCache.set(dir, await repoRootOf(dir))
-  const root = repoRootCache.get(dir)
+  const root = await repoRootCached(dir)
   if (!root) return null
   const rootClean = root.replace(/\/$/, '')
   // git 返回的是仓库根的绝对路径，而文档路径可能带 ssh://<rootId> 前缀，先剥掉再比
@@ -565,7 +583,7 @@ function scheduleBlame(doc: Doc | null, line: number): void {
 async function showCommitInfo(info: BlameInfo): Promise<void> {
   const doc = S.activeDoc()
   if (!doc?.path) return
-  const root = repoRootCache.get(dirname(doc.path))
+  const root = await repoRootCached(dirname(doc.path))
   if (!root) return
   const run = await commitStat(root, info.hash)
   openSheet(`提交 ${info.hash.slice(0, 8)}`, (body, close) => {
