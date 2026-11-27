@@ -195,22 +195,37 @@ enum RemoteFS {
     }
 
     /// 远端仓库的 git 状态，用于树里的修改标记
+    /// 一次 ssh 同时拿到分支和改动（原来 status + rev-parse 各跑一次，
+    /// 侧栏 12 个仓库就是 24 次往返）。--branch 的第一段就是 `## 分支...上游`。
     static func gitStatus(_ id: String, path: String) -> [String: Any] {
         guard let (_, target, abs) = parse(path) else { return ["entries": [], "branch": ""] }
-        let res = Remote.run(target, command: "cd \(Remote.quote(abs)) 2>/dev/null && git status --porcelain -z 2>/dev/null")
+        let res = Remote.run(target, command: "cd \(Remote.quote(abs)) 2>/dev/null && git status --porcelain -z --branch 2>/dev/null")
         let text = String(data: res.out, encoding: .utf8) ?? ""
         var out: [[String: Any]] = []
+        var branch = ""
         for item in text.split(separator: "\0") {
-            let s = String(item)
+            var s = String(item)
+            if s.hasPrefix("## ") {
+                s = String(s.dropFirst(3))
+                // 空仓库：`## No commits yet on master`；分离头指针：`## HEAD (no branch)`
+                if s.hasPrefix("No commits yet on ") {
+                    branch = String(s.dropFirst("No commits yet on ".count))
+                } else if s.contains("(no branch)") {
+                    branch = "HEAD"
+                } else {
+                    if let cut = s.range(of: "...") { s = String(s[..<cut.lowerBound]) }
+                    if let cut = s.range(of: " [") { s = String(s[..<cut.lowerBound]) }
+                    branch = s
+                }
+                branch = branch.trimmingCharacters(in: .whitespaces)
+                continue
+            }
             guard s.count > 3 else { continue }
             let code = String(s.prefix(2)).trimmingCharacters(in: .whitespaces)
             var rel = String(s.dropFirst(3))
             if let arrow = rel.range(of: " -> ") { rel = String(rel[arrow.upperBound...]) }
             out.append(["path": rel, "code": code.isEmpty ? "M" : code])
         }
-        // 当前分支
-        let br = Remote.run(target, command: "git -C \(Remote.quote(abs)) rev-parse --abbrev-ref HEAD 2>/dev/null")
-        let branch = (String(data: br.out, encoding: .utf8) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         return ["entries": out, "branch": branch]
     }
 }

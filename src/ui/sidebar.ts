@@ -465,11 +465,11 @@ export class Sidebar {
     if (canSkip) {
       // 先探测一次当前分区目录内容；没变化就完全跳过 DOM 重建
       this.dirty = false
-      for (const d of this.visibleDirs(tab)) {
+      // 并行探测：串行时会按展开目录数线性变慢（5 个目录 ≈ 5 次往返）
+      await Promise.all(this.visibleDirs(tab).map((d) => {
         this.cache.delete(d)
-        await this.load(d)
-        if (this.dirty) break
-      }
+        return this.load(d).catch(() => [])
+      }))
       if (!this.dirty) {
         if (tab === 'remote') this.refreshRemoteStatus(token).catch(() => {})
         return
@@ -519,6 +519,12 @@ export class Sidebar {
     for (const rr of remoteRoots) {
       this.remotePane.append(this.rootRow(remoteRootPath(rr), rr.name, 'remote'))
     }
+    // 先把所有已展开根目录的列表并发拉一遍（命中缓存后下面的串行渲染几乎无等待），
+    // 否则 12 个仓库会串行等 12 次 ssh。
+    await Promise.all(remoteRoots
+      .map((rr) => remoteRootPath(rr))
+      .filter((p) => state.expanded.has(p))
+      .map((p) => this.load(p).catch(() => [])))
     for (const rr of remoteRoots) {
       if (token !== this.token) return
       const rootPath = remoteRootPath(rr)
@@ -575,6 +581,14 @@ export class Sidebar {
     }
   }
 
+  /** 悬停就把目录列出来，点展开时直接命中缓存（远端一次往返 ≈ 15ms，但体感差很多） */
+  private prefetchDir(path: string): void {
+    if (this.cache.has(path) || this.failedDirs.has(path)) return
+    const ts = this.failedAt.get(path)
+    if (ts && Date.now() - ts < Sidebar.FAIL_COOLDOWN) return
+    void this.load(path).catch(() => [])
+  }
+
   private rootRow(root: string, label?: string, kind?: 'remote'): HTMLElement {
     const open = state.expanded.has(root)
     const row = el('div', {
@@ -613,6 +627,7 @@ export class Sidebar {
       this.drag = { path: root, name: basename(root), startX: ev.clientX, startY: ev.clientY, active: false }
     })
 
+    row.addEventListener('mouseenter', () => this.prefetchDir(root), { passive: true })
     row.addEventListener('click', () => {
       if (Date.now() < this.suppressClickUntil) return
       row.focus({ preventScroll: true })
@@ -677,6 +692,9 @@ export class Sidebar {
     row.tabIndex = -1
     row.style.cursor = 'pointer'
     this.byPath.set(entry.path, entry)
+    if (entry.isDir && !expanded) {
+      row.addEventListener('mouseenter', () => this.prefetchDir(entry.path), { passive: true })
+    }
     const twist = el('div', { class: 'twist' })
     if (entry.isDir) twist.append(icon('chevron'))
     row.append(twist)

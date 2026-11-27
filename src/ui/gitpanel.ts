@@ -199,7 +199,14 @@ export function mountGitPanel(host: HTMLElement, treePath: string, title: string
     }
 
     async function refresh(): Promise<void> {
-      const sres = await readStatus(treePath)
+      const [sres, brs, lg] = await Promise.all([
+        readStatus(treePath),
+        readBranches(treePath),
+        readLog(treePath, historyLimit),
+      ])
+      branches = brs
+      log = lg
+      hasMoreHistory = log.filter((c) => c.hash).length >= historyLimit
       if (sres.run.code !== 0) {
         clear(list)
         list.append(el('div', { class: 'git-empty' }, '这里不是 git 仓库，或 ssh 未连接'))
@@ -208,9 +215,6 @@ export function mountGitPanel(host: HTMLElement, treePath: string, title: string
         return
       }
       status = sres.status
-      branches = await readBranches(treePath)
-      log = await readLog(treePath, historyLimit)
-      hasMoreHistory = log.filter((c) => c.hash).length >= historyLimit
       const alive = new Set(status.files.map((f) => f.path))
       selected = new Set(Array.from(selected).filter((p) => alive.has(p)))
       if (!selected.size) selected = new Set(alive)
