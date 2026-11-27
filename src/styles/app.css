@@ -1659,17 +1659,24 @@ button:disabled,
    「提交框压在输出区上」这种溢出。 */
 .modal.git-modal {
   display: flex; flex-direction: column;
-  height: 74vh; min-height: 420px; max-height: 90vh;
+  height: 82vh; min-height: 480px; max-height: 92vh;
 }
 .modal.git-modal .body {
   flex: 1; min-height: 0; display: flex; flex-direction: column; padding-bottom: 12px;
 }
 .modal.git-modal .body > * { flex: 0 0 auto; }
 .modal.git-modal .git-body {
-  flex: 1 1 auto; height: auto; min-height: 240px; overflow: hidden;
+  flex: 1 1 auto; height: auto; min-height: 300px; overflow: hidden;
 }
+/* 列表至少要留一条的高度，否则提交框会被挤出去 */
+.modal.git-modal .git-list { flex: 1 1 auto; min-height: 64px; }
+.modal.git-modal .git-commit { flex: 0 0 auto; }
 .modal.git-modal .git-left, .modal.git-modal .git-right { min-height: 0; overflow: hidden; }
-.modal.git-modal .git-out { flex: 0 0 auto; max-height: 110px; }
+/* 输出区：默认 96px，可以往下拖高（最多 38vh），不再是一条挤死的窄缝 */
+.modal.git-modal .git-out {
+  flex: 0 0 auto; height: 120px; min-height: 56px; max-height: 38vh;
+  resize: vertical; overflow: auto;
+}
 
 /* Git 历史里的分支图形列 */
 .git-graph {
