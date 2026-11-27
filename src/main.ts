@@ -586,7 +586,7 @@ function scheduleBlame(doc: Doc | null, line: number): void {
     blameFor(doc, line)
       .then((info) => { if (seq === blameSeq) editor.setBlame(info) })
       .catch(() => { if (seq === blameSeq) editor.setBlame(null) })
-  }, 100)
+  }, 220)
 }
 
 async function showCommitInfo(info: BlameInfo): Promise<void> {
