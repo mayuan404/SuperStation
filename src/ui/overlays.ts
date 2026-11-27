@@ -104,10 +104,11 @@ export function prompt(opts: PromptOptions): Promise<string | null> {
   })
 }
 
-export function openSheet(title: string, build: (body: HTMLElement, close: () => void) => void, width = 420, resizable = false): void {
+export function openSheet(title: string, build: (body: HTMLElement, close: () => void) => void, width = 420, resizable = false, cls = ''): void {
   const { modal, close } = modalShell()
   modal.style.width = `${width}px`
   if (resizable) modal.classList.add('resizable')
+  if (cls) for (const c of cls.split(/\s+/)) if (c) modal.classList.add(c)
   modal.append(el('h3', {}, title))
   const body = el('div', { class: 'body' })
   modal.append(body)

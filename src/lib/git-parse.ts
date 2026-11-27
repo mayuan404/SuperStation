@@ -19,7 +19,7 @@ export interface GitStatusParsed {
 }
 
 export interface GitBranch { name: string; current: boolean }
-export interface GitCommit { hash: string; author: string; when: string; subject: string }
+export interface GitCommit { hash: string; author: string; when: string; subject: string; graph?: string }
 
 function codeOf(x: string, y: string): string {
   const xy = x + y
@@ -93,6 +93,29 @@ export function parseBranches(raw: string): GitBranch[] {
 }
 
 /** 解析 `git log --pretty=format:'%h%x09%an%x09%ar%x09%s'` */
+/** 解析 `git log --graph --pretty=format:'%x00%h%x09%an%x09%ar%x09%s'`：
+ *  行首到 \0 之间是图形列（`* | \\ /`），之后是制表符分隔的字段。 */
+export function parseLogGraph(raw: string): GitCommit[] {
+  return raw
+    .split('\n')
+    .map((line) => line.replace(/\s+$/, ''))
+    .filter(Boolean)
+    .map((line) => {
+      const at = line.indexOf('\u0000')
+      // 没有 \0 的是纯连线行（`| |/` 这种），保留下来图形才连续
+      if (at < 0) return { hash: '', author: '', when: '', subject: '', graph: line }
+      const graph = line.slice(0, at)
+      const parts = line.slice(at + 1).split('\t')
+      return {
+        hash: parts[0] ?? '',
+        author: parts[1] ?? '',
+        when: parts[2] ?? '',
+        subject: parts.slice(3).join('\t'),
+        graph,
+      }
+    })
+}
+
 export function parseLog(raw: string): GitCommit[] {
   return raw
     .split('\n')

@@ -2,7 +2,7 @@
 // 解析放在 git-parse.ts，UI 在 ui/gitpanel.ts。
 
 import { invoke } from './bridge'
-import { parseBranches, parseLog, parseStatusZ, type GitBranch, type GitCommit, type GitFile, type GitStatusParsed } from './git-parse'
+import { parseBranches, parseLogGraph, parseStatusZ, type GitBranch, type GitCommit, type GitFile, type GitStatusParsed } from './git-parse'
 
 export interface GitRun {
   cmd: string
@@ -89,8 +89,13 @@ export async function commitStat(dir: string, hash: string): Promise<GitRun> {
 }
 
 export async function readLog(treePath: string, n = 5): Promise<GitCommit[]> {
-  const run = await gitRun(treePath, `git log -n ${Math.max(1, n)} --pretty=format:'%h%x09%an%x09%ar%x09%s'`, 20)
-  return run.code === 0 ? parseLog(run.stdout) : []
+  // --graph 直接把合并拓扑画出来，省得自己实现泳道算法；--all 让未合并的分支也进图
+  const run = await gitRun(
+    treePath,
+    `git log --graph --date-order --all -n ${Math.max(1, n)} --pretty=format:'%x00%h%x09%an%x09%ar%x09%s'`,
+    25
+  )
+  return run.code === 0 ? parseLogGraph(run.stdout) : []
 }
 
 /** 单个文件的改动内容：未跟踪的直接读文件，其余走 diff（-c core.quotePath=false 保证中文路径可读） */

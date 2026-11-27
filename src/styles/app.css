@@ -1654,3 +1654,31 @@ button:disabled,
   font-size: 12px; line-height: 1.5; color: var(--fg);
   background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px;
 }
+
+/* Git 面板：整体作为 flex 列，拖动改变尺寸时内部跟着伸缩，不会出现
+   「提交框压在输出区上」这种溢出。 */
+.modal.git-modal {
+  display: flex; flex-direction: column;
+  height: 74vh; min-height: 420px; max-height: 90vh;
+}
+.modal.git-modal .body {
+  flex: 1; min-height: 0; display: flex; flex-direction: column; padding-bottom: 12px;
+}
+.modal.git-modal .body > * { flex: 0 0 auto; }
+.modal.git-modal .git-body {
+  flex: 1 1 auto; height: auto; min-height: 240px; overflow: hidden;
+}
+.modal.git-modal .git-left, .modal.git-modal .git-right { min-height: 0; overflow: hidden; }
+.modal.git-modal .git-out { flex: 0 0 auto; max-height: 110px; }
+
+/* Git 历史里的分支图形列 */
+.git-graph {
+  flex: 0 0 auto; font-family: var(--mono); font-size: 11px; line-height: 1.35;
+  white-space: pre; color: var(--fg-3); letter-spacing: 0; margin-right: 2px;
+}
+.git-graph .dot { color: var(--accent); font-weight: 700; }
+.git-graph .ln { color: var(--fg-3); }
+.git-graph-hint { font-size: 10.5px; color: var(--fg-3); opacity: .7; }
+.git-row.hist { align-items: baseline; }
+.git-row.hist.conn { min-height: 15px; padding-top: 0; padding-bottom: 0; cursor: default; }
+.git-row.hist.conn:hover { background: transparent; }

@@ -175,7 +175,7 @@ export function openGitPanel(treePath: string, title: string, opts: GitPanelOpts
 
     function paintLast(): void {
       clear(lastLine)
-      const c = log[0]
+      const c = log.find((x) => x.hash)
       if (!c) return
       lastLine.append(el('span', { class: 'git-hash' }, c.hash), el('span', {}, ` ${c.subject}`))
       lastLine.title = `${c.hash} ${c.author} ${c.when}\n${c.subject}`
@@ -237,16 +237,40 @@ export function openGitPanel(treePath: string, title: string, opts: GitPanelOpts
       }
     }
 
+    /** 把 git 的 ASCII 图形列渲染成等宽小块；提交点用强调色，其余压暗。
+     *  width 用来把所有行的图形列对齐（否则每行图形宽度不同，右侧文字会参差）。 */
+    function graphSpan(graph: string, width: number): HTMLElement {
+      const box = el('span', { class: 'git-graph' })
+      box.style.width = `${width}ch`
+      const padded = graph.padEnd(width, ' ')
+      for (const ch of padded) {
+        if (ch === '*') box.append(el('span', { class: 'dot' }, '*'))
+        else if (ch === '|' || ch === '/' || ch === '\\') box.append(el('span', { class: 'ln' }, ch))
+        else box.append(document.createTextNode(ch))
+      }
+      return box
+    }
+
     function paintHistory(): void {
       clear(list)
       clear(listHead)
-      listHead.append(el('span', {}, `最近 ${log.length} 条提交`))
+      const commitCount = log.filter((c) => c.hash).length
+      listHead.append(el('span', {}, `最近 ${commitCount} 条提交`), el('span', { class: 'git-graph-hint' }, '图形含未合并分支'))
       if (!log.length) {
         list.append(el('div', { class: 'git-empty' }, '还没有提交记录'))
         return
       }
+      const gw = log.reduce((m, c) => Math.max(m, (c.graph ?? '').length), 0)
       for (const c of log) {
+        if (!c.hash) {
+          // 只有连线、没有提交的行：保持图形连续，不可点击
+          const blank = el('div', { class: 'git-row hist conn' })
+          if (c.graph) blank.append(graphSpan(c.graph, gw))
+          list.append(blank)
+          continue
+        }
         const row = el('div', { class: 'git-row hist' + (c.hash === activeCommit ? ' active' : '') })
+        if (c.graph) row.append(graphSpan(c.graph, gw))
         row.append(
           el('span', { class: 'git-hash' }, c.hash),
           el('span', { class: 'nm' }, c.subject),
@@ -309,5 +333,5 @@ export function openGitPanel(treePath: string, title: string, opts: GitPanelOpts
 
     void refresh()
     setTimeout(() => msg.focus(), 60)
-  }, 900, true)
+  }, 900, true, 'git-modal')
 }
