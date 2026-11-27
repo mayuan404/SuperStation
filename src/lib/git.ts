@@ -16,8 +16,14 @@ export function shq(s: string): string {
   return "'" + String(s).replace(/'/g, "'\\''") + "'"
 }
 
+// Windows 端本地命令走 cmd.exe，而这些 git 命令里带 POSIX 重定向（2>/dev/null），
+// 在 cmd 下跑不了。所以本地 git 只在 macOS 上启用；Windows 维持原状（不显示 blame）。
+const isWindowsShell = typeof (window as any).chrome?.webview !== 'undefined'
+
 export async function gitRun(treePath: string, cmd: string, timeout = 120): Promise<GitRun> {
-  const res = await invoke<any>('remote.exec', { path: treePath, cmd, timeout })
+  const remote = treePath.startsWith('ssh://')
+  const method = remote || isWindowsShell ? 'remote.exec' : 'local.exec'
+  const res = await invoke<any>(method, { path: treePath, cmd, timeout })
     .catch((e) => ({ error: e?.message ?? String(e) }))
   if (res?.error) return { cmd, code: -1, stdout: '', stderr: String(res.error) }
   return {

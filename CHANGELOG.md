@@ -1,5 +1,33 @@
 # 更新记录
 
+## 0.7.8
+
+### 修复：行级 blame 在子目录里的文件上永远不显示（真正的主因）
+
+- `readBlame` 的 cwd 是文件所在目录，但传进去的是**仓库相对路径**。
+  git 会再拼一次 cwd，于是 `configs/rules/x.yaml` 变成
+  `configs/rules/configs/rules/x.yaml` → `fatal: no such path` → 标注为 null。
+- 为什么"有的能看到"：**仓库根目录下的文件**恰好成立（仓库相对路径 == 文件名），
+  比如 `config.json` 能显示，`configs/rules/*.yaml` 就不行。跟仓库无关，跟目录深度有关。
+- 现在传文件名（相对当前目录），任意深度的文件都能拿到 blame。
+- 顺带修 `点击标注查看提交详情`：它把裸绝对路径交给远端命令通道，
+  远端仓库会落到「会话未注册」，现在会补回 `ssh://<rootId>` 前缀。
+- blame 缓存键改用文件绝对路径，避免不同目录同名文件互相命中。
+
+## 0.7.7
+
+### 新增：本地仓库也有行级 git blame
+
+- 之前 blame 只走 `remote.exec`，非 `ssh://` 路径一律「远端会话未注册」，
+  所以本地 Mac 目录里的仓库永远不显示行尾标注。
+- 新增原生命令通道 `local.exec`（`native/LocalExec.swift`）：起 `/bin/sh` 跑命令，
+  自动补全 PATH（从 Finder 启动的 app 常找不到 git），双管道并行读避免死锁，带超时杀进程。
+- `gitRun` 按路径前缀分派：`ssh://` 走远端，其余走本地。blame、仓库根探测、
+  提交详情、状态刷新在本地仓库上全部生效。
+- 路径比较容错 `/private` 前缀（macOS `/tmp`、`/var` 是软链）。
+- Windows 端暂不启用本地通道（那边的命令要走 cmd.exe，现有 git 命令含 POSIX 重定向），
+  行为与之前一致。
+
 ## 0.7.6
 
 ### 修复：Git 面板的提交框压在输出区上

@@ -545,13 +545,20 @@ async function blameFor(doc: Doc, line: number): Promise<BlameInfo | null> {
   const rootClean = root.replace(/\/$/, '')
   // git 返回的是仓库根的绝对路径，而文档路径可能带 ssh://<rootId> 前缀，先剥掉再比
   const abs = absolutePathOf(doc.path)
-  if (abs !== rootClean && !abs.startsWith(rootClean + '/')) return null
-  const rel = abs.slice(rootClean.length + 1)
-  if (!rel) return null
-  const key = `${rootClean}|${rel}|${doc.mtime}|${line}`
+  // macOS 上 /tmp、/var 实际是 /private 下的软链，git 会把路径解析成 /private/...
+  const samePath = (a: string, b: string) => {
+    if (a === b) return true
+    const strip = (x: string) => x.replace(/^\/private(?=\/(tmp|var|etc)\b)/, '')
+    return strip(a) === strip(b)
+  }
+  if (!samePath(abs, rootClean) && !abs.startsWith(rootClean + '/') && !samePath(abs.slice(0, rootClean.length), rootClean)) return null
+  if (abs.length <= rootClean.length + 1) return null
+  const key = `${rootClean}|${abs}|${doc.mtime}|${line}`
   const hit = blameCache.get(key)
   if (hit && Date.now() - hit.at < 300_000) return hit.info
-  const b = await readBlame(dir, rel, line)
+  // git 的 cwd 是这个文件所在的目录，所以路径要给「文件名」；
+  // 以前传的是仓库相对路径，git 会再拼一次 cwd，变成 configs/rules/configs/rules/x.yaml 直接报错
+  const b = await readBlame(dir, basename(abs), line)
   let info: BlameInfo | null = null
   if (b) {
     const when = b.uncommitted ? '未提交' : agoText(b.time)
@@ -585,7 +592,10 @@ async function showCommitInfo(info: BlameInfo): Promise<void> {
   if (!doc?.path) return
   const root = await repoRootCached(dirname(doc.path))
   if (!root) return
-  const run = await commitStat(root, info.hash)
+  // root 是 git 返回的裸绝对路径；远端仓库必须补回 ssh://<rootId> 前缀才能进对会话
+  const abs = absolutePathOf(doc.path)
+  const prefix = abs && doc.path.endsWith(abs) ? doc.path.slice(0, doc.path.length - abs.length) : ''
+  const run = await commitStat(prefix + root, info.hash)
   openSheet(`提交 ${info.hash.slice(0, 8)}`, (body, close) => {
     body.append(el('pre', { class: 'git-commit-detail' }, run.stdout || run.stderr || '没有输出'))
     const bar = el('div', { class: 'git-commit-bar' })

@@ -989,6 +989,11 @@ final class API {
                                message: params["message"] as? String ?? "update")
                 : [:]
 
+        case "local.exec":
+            return LocalExec.run(params["path"] as? String ?? "",
+                                 cmd: params["cmd"] as? String ?? "",
+                                 timeout: params["timeout"] as? Double ?? 60)
+
         case "remote.exec":
             return RemoteFS.exec(params["path"] as? String ?? "",
                                  cmd: params["cmd"] as? String ?? "",
