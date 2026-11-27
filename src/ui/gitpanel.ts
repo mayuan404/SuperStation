@@ -182,8 +182,15 @@ export function mountGitPanel(host: HTMLElement, treePath: string, title: string
       const res = await promise
       const arr = Array.isArray(res) ? res : [res]
       setOutput(arr)
-      const failed = arr.some((r) => r.code !== 0)
-      if (failed) toast('命令失败，详情见面板底部', 3200)
+      const failed = arr.find((r) => r.code !== 0)
+      if (failed) {
+        // 把 git 的第一句原因带到 toast 里，"命令失败" 本身没有任何信息量
+        const reason = `${failed.stdout ?? ''}\n${failed.stderr ?? ''}`
+          .split('\n')
+          .map((l) => l.trim())
+          .find((l) => l && !l.startsWith('$')) ?? ''
+        toast(reason ? `失败：${reason.slice(0, 90)}` : '命令失败，详情见面板底部', 4200)
+      }
       busy = false
       commitBtn.removeAttribute('disabled')
       await refresh()

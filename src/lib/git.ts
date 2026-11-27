@@ -163,8 +163,16 @@ export function pullRepo(treePath: string): Promise<GitRun> {
   return gitRun(treePath, 'git pull --ff-only 2>&1', 180)
 }
 
-export function pushRepo(treePath: string): Promise<GitRun> {
-  return gitRun(treePath, 'git push 2>&1', 180)
+export async function pushRepo(treePath: string): Promise<GitRun> {
+  const first = await gitRun(treePath, 'git push 2>&1', 180)
+  if (first.code === 0) return first
+  const out = `${first.stdout}\n${first.stderr}`
+  // 新分支没有上游时 git 会直接 exit 128，只提示「没有 upstream」。
+  // 这种最常见的情况自动补一次 `push -u origin HEAD`，省得用户去终端敲。
+  if (/no upstream branch|has no upstream|set-upstream|no configured push destination/i.test(out)) {
+    return gitRun(treePath, 'git push -u origin HEAD 2>&1', 180)
+  }
+  return first
 }
 
 export function switchBranch(treePath: string, name: string): Promise<GitRun> {
