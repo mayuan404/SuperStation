@@ -72,7 +72,8 @@ export function mountGitPanel(host: HTMLElement, treePath: string, title: string
     const tabs = el('div', { class: 'git-tabs' }, tabChanges, tabHistory)
     const listHead = el('div', { class: 'git-list-head' })
     const list = el('div', { class: 'git-list' })
-    const warn = el('div', { class: 'git-warn' })
+    // 初始就是隐藏：否则在 git status 回来之前会闪一下冲突告警的红框
+    const warn = el('div', { class: 'git-warn', style: { display: 'none' } })
     const msg = el('textarea', { class: 'git-msg', placeholder: '提交信息（⌘⏎ 提交）', rows: '2' }) as HTMLTextAreaElement
     const commitBtn = el('button', { class: 'primary' }, '提交选中')
     const lastLine = el('div', { class: 'git-last' })
