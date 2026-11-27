@@ -36,6 +36,11 @@ export function mountGitPanel(host: HTMLElement, treePath: string, title: string
   let activeCommit = ''
   let tab: 'changes' | 'history' = 'changes'
   let busy = false
+  // 历史分页：一次 30 条，滚到底再加载，直到没有更多
+  const PAGE = 30
+  let historyLimit = PAGE
+  let historyBusy = false
+  let hasMoreHistory = true
 
   const body = host
   body.classList.add('git-panel-root')
@@ -203,7 +208,8 @@ export function mountGitPanel(host: HTMLElement, treePath: string, title: string
       }
       status = sres.status
       branches = await readBranches(treePath)
-      log = await readLog(treePath, 20)
+      log = await readLog(treePath, historyLimit)
+      hasMoreHistory = log.filter((c) => c.hash).length >= historyLimit
       const alive = new Set(status.files.map((f) => f.path))
       selected = new Set(Array.from(selected).filter((p) => alive.has(p)))
       if (!selected.size) selected = new Set(alive)
@@ -317,11 +323,29 @@ export function mountGitPanel(host: HTMLElement, treePath: string, title: string
       }
     }
 
+    async function loadMoreHistory(): Promise<void> {
+      if (historyBusy || !hasMoreHistory) return
+      historyBusy = true
+      const keep = list.scrollTop
+      const foot = list.querySelector('.git-more')
+      if (foot) foot.textContent = '加载中…'
+      historyLimit += PAGE
+      const rows = await readLog(treePath, historyLimit)
+      log = rows
+      hasMoreHistory = rows.filter((c) => c.hash).length >= historyLimit
+      historyBusy = false
+      paintHistory()
+      list.scrollTop = keep
+    }
+
     function paintHistory(): void {
       clear(list)
       clear(listHead)
       const commits = log.filter((c) => c.hash)
-      listHead.append(el('span', {}, `最近 ${commits.length} 条提交`))
+      listHead.append(
+        el('span', {}, `已加载 ${commits.length} 条提交${hasMoreHistory ? '' : '（全部）'}`),
+        el('div', { class: 'spacer' }),
+      )
       if (!commits.length) {
         list.append(el('div', { class: 'git-empty' }, '还没有提交记录'))
         return
@@ -351,6 +375,10 @@ export function mountGitPanel(host: HTMLElement, treePath: string, title: string
         })
         list.append(row)
       }
+      if (hasMoreHistory) {
+        const more = el('div', { class: 'git-more' }, '滚动加载更多…')
+        list.append(more)
+      }
     }
 
     async function showFileDiff(f: GitFile): Promise<void> {
@@ -369,8 +397,18 @@ export function mountGitPanel(host: HTMLElement, treePath: string, title: string
       diffPre.scrollTop = 0
     }
 
+    list.addEventListener('scroll', () => {
+      if (tab !== 'history' || historyBusy || !hasMoreHistory) return
+      if (list.scrollTop + list.clientHeight >= list.scrollHeight - 80) void loadMoreHistory()
+    })
+
     tabChanges.addEventListener('click', () => { tab = 'changes'; paintTabs(); paintChanges() })
-    tabHistory.addEventListener('click', () => { tab = 'history'; paintTabs(); paintHistory() })
+    tabHistory.addEventListener('click', () => {
+      tab = 'history'
+      if (log.filter((c) => c.hash).length < historyLimit) historyLimit = Math.max(PAGE, log.filter((c) => c.hash).length)
+      paintTabs()
+      paintHistory()
+    })
 
     branchSel.addEventListener('change', async () => {
       const next = branchSel.value

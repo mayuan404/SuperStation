@@ -656,11 +656,15 @@ function mountGitTab(doc: Doc): void {
       gitTabs.delete(id)
     }
   }
-  if (gitTabs.has(doc.id)) return
-  const box = el('div', { class: 'git-panel-root' })
-  ui.gitHost.append(box)
-  gitTabs.set(doc.id, box)
-  mountGitPanel(box, doc.gitPath ?? '', doc.gitTitle ?? doc.name)
+  if (!gitTabs.has(doc.id)) {
+    const box = el('div', { class: 'git-panel-root' })
+    ui.gitHost.append(box)
+    gitTabs.set(doc.id, box)
+    mountGitPanel(box, doc.gitPath ?? '', doc.gitTitle ?? doc.name)
+  }
+  // 只显示当前标签页的面板：以前所有面板都挂在同一个容器里，
+  // 于是多开几个仓库就会看到好几套「分支/变更/提交信息」叠在一起。
+  for (const [id, box] of gitTabs) box.style.display = id === doc.id ? 'flex' : 'none'
 }
 
 function syncActive(): void {

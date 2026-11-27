@@ -1640,4 +1640,5 @@ button:disabled,
 .git-row.hist svg.git-graph { flex: 0 0 auto; display: block; overflow: visible; }
 .git-row.hist .git-hash { flex: 0 0 auto; }
 .git-row.hist .nm { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.git-row.hist .git-when { flex: 0 0 auto; }
+.git-row.hist .git-when { flex: 0 0 auto; min-width: 64px; text-align: right; }
+.git-more { padding: 10px; text-align: center; font-size: 11.5px; color: var(--fg-3); }
