@@ -936,7 +936,7 @@ function renderTitle(): void {
   const doc = S.activeDoc()
   const rootName = S.state.roots.length ? basename(S.state.roots[0]) : ''
   clear(ui.title)
-  if (!rootName && !doc) ui.title.append(el('span', {}, 'SuperWorkStation'))
+  if (!rootName && !doc) ui.title.append(el('span', {}, 'OneStation'))
   if (rootName) {
     ui.title.append(el('span', {}, rootName))
     if (S.state.roots.length > 1) ui.title.append(el('span', { class: 'dim' }, ` +${S.state.roots.length - 1}`))
@@ -945,8 +945,8 @@ function renderTitle(): void {
     if (rootName) ui.title.append(el('span', { class: 'dim' }, '  ›  '))
     ui.title.append(el('span', { class: 'dim' }, doc.name))
   }
-  document.title = doc ? `${doc.name} — SuperWorkStation` : 'SuperWorkStation'
-  invoke('ui.setTitle', { title: doc ? `${doc.name} — SuperWorkStation` : 'SuperWorkStation' }).catch(() => {})
+  document.title = doc ? `${doc.name} — OneStation` : 'OneStation'
+  invoke('ui.setTitle', { title: doc ? `${doc.name} — OneStation` : 'OneStation' }).catch(() => {})
 }
 
 function updateTreeActive(): void {
@@ -2385,5 +2385,5 @@ boot().then(() => {
 }).catch((err) => {
   invoke('app.log', { line: `BOOT FAIL ${String(err?.stack ?? err)}` }).catch(() => {})
   console.error(err)
-  document.body.innerHTML = `<div style="padding:40px;font-family:-apple-system;color:#888">SuperWorkStation 启动失败：${String(err?.message ?? err)}</div>`
+  document.body.innerHTML = `<div style="padding:40px;font-family:-apple-system;color:#888">OneStation 启动失败：${String(err?.message ?? err)}</div>`
 })

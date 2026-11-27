@@ -3,19 +3,19 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleDisplayName</key>
-	<string>SuperWorkStation</string>
+	<string>OneStation</string>
 	<key>CFBundleExecutable</key>
-	<string>SuperWorkStation</string>
+	<string>OneStation</string>
 	<key>CFBundleIconFile</key>
 	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
 	<string>app.betternotebook.editor</string>
 	<key>CFBundleName</key>
-	<string>SuperWorkStation</string>
+	<string>OneStation</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.7.9</string>
+	<string>0.8.0</string>
 	<key>CFBundleVersion</key>
 	<string>5</string>
 	<key>LSApplicationCategoryType</key>

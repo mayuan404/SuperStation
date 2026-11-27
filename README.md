@@ -1,4 +1,4 @@
-# SuperWorkStation
+# OneStation
 
 > 文件 / 笔记 / 终端 / 远程仓库，一个窗口全搞定。
 > *Documents, notes, terminal and remote repos — all in one window.*
@@ -34,7 +34,7 @@ A ~3 MB native shell (Swift + system WebView) that boots instantly: the sidebar 
 - Markdown **不执行内联 HTML**，页面有严格 CSP
 - 自定义协议只放行**已授权目录**，笔记内容读不到 `~/.ssh` 之类的位置
 - 写操作同样受白名单限制：只有你打开过或通过对话框选过的目录才可写
-- SSH 密码存 `~/Library/Application Support/SuperWorkStation/ssh-secrets.json`（0600），不进设置、不进日志
+- SSH 密码存 `~/Library/Application Support/OneStation/ssh-secrets.json`（0600），不进设置、不进日志
 - AI 的 API Key 存在同目录 `ai.key`（0600）
 
 ### 要求与安装
@@ -42,27 +42,27 @@ A ~3 MB native shell (Swift + system WebView) that boots instantly: the sidebar 
 **Windows x64（0.4.0 起）**
 
 - Windows 10 1809+ / Windows 11，x64（ARM64 机器通过系统 x64 模拟运行）
-- 下载 **`SuperWorkStation-0.4.0-win-x64.zip`**（自包含，无需安装 .NET）→ 解压整个文件夹 → 双击 `SuperWorkStation.exe`
+- 下载 **`OneStation-0.4.0-win-x64.zip`**（自包含，无需安装 .NET）→ 解压整个文件夹 → 双击 `OneStation.exe`
 - 缺少 WebView2 时运行 `scripts\install-webview2.ps1`；未签名，首次运行 SmartScreen 选「更多信息 → 仍要运行」
 - 构建与限制见 [windows/README.md](windows/README.md)，发布说明见 [RELEASE-0.4.0.md](RELEASE-0.4.0.md)
 
 **macOS（0.3.1）**
 
 - macOS 13+（Apple Silicon 与 Intel 均可，构建脚本默认编译当前架构）
-- 下载 **`SuperWorkStation-0.3.1.dmg`** → 拖进「应用程序」
+- 下载 **`OneStation-0.3.1.dmg`** → 拖进「应用程序」
 - 校验值（0.3.1）：`77c815bcc9ca0731bc7ac245ac1d5e060713c129f6fbd31bb4b8f50b74ae6d62`
 - 每个版本的变更见 [CHANGELOG.md](CHANGELOG.md)，本次发布说明见 [RELEASE-0.3.1.md](RELEASE-0.3.1.md)
 - 应用为 ad-hoc 签名，首次打开请**右键 → 打开**；若仍被拦：
   ```bash
-  xattr -dr com.apple.quarantine /Applications/SuperWorkStation.app
+  xattr -dr com.apple.quarantine /Applications/OneStation.app
   ```
 
 ### 从源码构建
 
 ```bash
 npm install
-./build.sh                  # 产出 build/SuperWorkStation.app
-./make_dmg.sh               # 产出 dist/SuperWorkStation-<version>.dmg
+./build.sh                  # 产出 build/OneStation.app
+./make_dmg.sh               # 产出 dist/OneStation-<version>.dmg
 ./scripts/e2e/all.sh        # 回归测试：冒烟 / 设置 / 会话 / 侧边栏 tab / 终端搜索 / 快速命令
 ```
 
@@ -104,7 +104,7 @@ npm install
 - Markdown **never executes inline HTML**; the page runs under a strict CSP
 - The custom URL scheme only serves **allow-listed directories**, so note content cannot read `~/.ssh` and friends
 - Writes are gated the same way: only folders you opened (or picked in a dialog) are writable
-- SSH passwords live in `~/Library/Application Support/SuperWorkStation/ssh-secrets.json` (mode 0600), never in settings or logs
+- SSH passwords live in `~/Library/Application Support/OneStation/ssh-secrets.json` (mode 0600), never in settings or logs
 - The AI API key lives in `ai.key` (mode 0600) next to it
 
 ### Requirements & install
@@ -112,27 +112,27 @@ npm install
 **Windows x64 (since 0.4.0)**
 
 - Windows 10 1809+ / Windows 11, x64 (ARM64 devices run it via the system x64 emulation)
-- Download **`SuperWorkStation-0.4.0-win-x64.zip`** (self-contained, no .NET runtime needed), extract the whole folder and run `SuperWorkStation.exe`
+- Download **`OneStation-0.4.0-win-x64.zip`** (self-contained, no .NET runtime needed), extract the whole folder and run `OneStation.exe`
 - If WebView2 is missing, run `scripts\install-webview2.ps1`; the build is unsigned — choose "More info → Run anyway" on the SmartScreen prompt
 - Build notes and limitations: [windows/README.md](windows/README.md); release notes: [RELEASE-0.4.0.md](RELEASE-0.4.0.md)
 
 **macOS (0.3.1)**
 
 - macOS 13+ (Apple Silicon and Intel; the build script compiles the host architecture)
-- Download **`SuperWorkStation-0.3.1.dmg`**, drag the app into **Applications**
+- Download **`OneStation-0.3.1.dmg`**, drag the app into **Applications**
 - SHA-256 (0.3.1): `77c815bcc9ca0731bc7ac245ac1d5e060713c129f6fbd31bb4b8f50b74ae6d62`
 - See [CHANGELOG.md](CHANGELOG.md) for per-version notes and [RELEASE-0.3.1.md](RELEASE-0.3.1.md) for this release
 - The app is ad-hoc signed — on first launch use **right-click → Open**, or clear the quarantine flag:
   ```bash
-  xattr -dr com.apple.quarantine /Applications/SuperWorkStation.app
+  xattr -dr com.apple.quarantine /Applications/OneStation.app
   ```
 
 ### Build from source
 
 ```bash
 npm install
-./build.sh                  # → build/SuperWorkStation.app
-./make_dmg.sh               # → dist/SuperWorkStation-<version>.dmg
+./build.sh                  # → build/OneStation.app
+./make_dmg.sh               # → dist/OneStation-<version>.dmg
 ./scripts/e2e/all.sh        # regression checks: smoke, settings, sessions, sidebar tabs, terminal, quick commands
 ```
 
@@ -153,9 +153,9 @@ npm install
 
 ## Powered by DeepSeek
 
-SuperWorkStation 的 AI 助手由 **DeepSeek** 驱动（默认 `deepseek-flash`，可在设置里换成任何 OpenAI 兼容接口）；整个应用也是借助 **DeepSeek Harness** 结对开发完成的。
+OneStation 的 AI 助手由 **DeepSeek** 驱动（默认 `deepseek-flash`，可在设置里换成任何 OpenAI 兼容接口）；整个应用也是借助 **DeepSeek Harness** 结对开发完成的。
 
-> The AI assistant in SuperWorkStation is powered by **DeepSeek** (defaults to `deepseek-flash`; any OpenAI-compatible endpoint can be configured in Settings). SuperWorkStation itself was built pair-programming with **DeepSeek Harness**.
+> The AI assistant in OneStation is powered by **DeepSeek** (defaults to `deepseek-flash`; any OpenAI-compatible endpoint can be configured in Settings). OneStation itself was built pair-programming with **DeepSeek Harness**.
 
 [![Powered by DeepSeek](https://img.shields.io/badge/Powered%20by-DeepSeek-4D6BFE)](https://www.deepseek.com/)
 

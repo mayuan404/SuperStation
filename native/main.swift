@@ -1,4 +1,4 @@
-// SuperWorkStation — 文件 / 笔记 / 终端 一体的本地工作台。
+// OneStation — 文件 / 笔记 / 终端 一体的本地工作台。
 // Native shell: AppKit window + WKWebView, custom URL scheme, JS bridge, filesystem + vault.
 
 import AppKit
@@ -1619,7 +1619,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         window = NSWindow(contentRect: rect,
                           styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
                           backing: .buffered, defer: false)
-        window.title = "SuperWorkStation"
+        window.title = "OneStation"
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
         // 关掉「拖背景移动窗口」：AppKit 会把窗口背景当拖拽区，鼠标停在树行上时
@@ -1697,11 +1697,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
 
         let appItem = NSMenuItem(); main.addItem(appItem)
         let appMenu = NSMenu()
-        appMenu.addItem(withTitle: "关于 SuperWorkStation", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+        appMenu.addItem(withTitle: "关于 OneStation", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
         appMenu.addItem(.separator())
-        appMenu.addItem(withTitle: "隐藏 SuperWorkStation", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
+        appMenu.addItem(withTitle: "隐藏 OneStation", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
         appMenu.addItem(.separator())
-        appMenu.addItem(withTitle: "退出 SuperWorkStation", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        appMenu.addItem(withTitle: "退出 OneStation", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         appItem.submenu = appMenu
 
         let editItem = NSMenuItem(); main.addItem(editItem)

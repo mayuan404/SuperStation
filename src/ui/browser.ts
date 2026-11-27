@@ -425,7 +425,7 @@ class BrowserPane {
       out.push({ label: '计算大小…', icon: 'table', onClick: () => this.measure(one.path) })
       out.push({ sep: true })
     } else {
-      out.push({ label: '用 SuperWorkStation 打开', icon: 'file', onClick: () => this.deps.openFile(one.path, one.displayName) })
+      out.push({ label: '用 OneStation 打开', icon: 'file', onClick: () => this.deps.openFile(one.path, one.displayName) })
       out.push({ label: '快速查看', icon: 'eye', onClick: () => this.deps.quickLook(one.path) })
       out.push({ sep: true })
     }

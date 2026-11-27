@@ -49,7 +49,7 @@ if (webview2) {
 
 export function invoke<T = any>(method: string, params: Record<string, any> = {},
                                 opts: { silent?: boolean } = {}): Promise<T> {
-  if (!hasNative) return Promise.reject(new Error('未在 SuperWorkStation 应用中运行'))
+  if (!hasNative) return Promise.reject(new Error('未在 OneStation 应用中运行'))
   return new Promise<T>((resolve, reject) => {
     const id = ++seq
     pending.set(id, { resolve, reject, silent: opts.silent })

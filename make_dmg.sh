@@ -3,7 +3,7 @@
 set -e
 cd "$(dirname "$0")"
 
-APP_NAME="SuperWorkStation"
+APP_NAME="OneStation"
 VERSION="${1:-$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' native/Info.plist)}"
 APP="build/$APP_NAME.app"
 DIST="release"   # 不要放 dist：vite build 会清空 dist/

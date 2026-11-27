@@ -7,12 +7,12 @@ SCRIPT="${1:?用法: run.sh <脚本.js> [超时秒数]}"
 TIMEOUT="${2:-15}"
 SCRIPT=$(cd "$(dirname "$SCRIPT")" && pwd)/$(basename "$SCRIPT")
 SUPPORT="$HOME/Library/Application Support/SuperWorkStation"
-LOG="$HOME/Library/Logs/SuperWorkStation.log"
+LOG="$HOME/Library/Logs/OneStation.log"
 mkdir -p "$SUPPORT"
-killall SuperWorkStation 2>/dev/null || true
+killall OneStation 2>/dev/null || true
 # 等旧实例真的退出，不然 open 只会把还在关闭的进程激活，脚本不会重跑
 for _ in $(seq 1 25); do
-  pgrep -x SuperWorkStation >/dev/null || break
+  pgrep -x OneStation >/dev/null || break
   sleep 0.2
 done
 sleep 0.6

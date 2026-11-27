@@ -1,5 +1,17 @@
 # 更新记录
 
+## 0.8.0
+
+### 改名：SuperWorkStation → OneStation
+
+- App 名称、可执行文件、窗口标题、菜单项、DMG 文件名、网页 title 全部改为 **OneStation**。
+- 打包产物变成 `build/OneStation.app` 和 `release/OneStation-<版本>.dmg`。
+- **数据目录不变**（仍是 `~/Library/Application Support/SuperWorkStation`），
+  所以升级后配置、会话、收藏、主题一个都不会丢。
+- Bundle Identifier 保持 `app.betternotebook.editor` 不变：改了会让 macOS 认为是另一个 app，
+  系统偏好、权限授权、窗口状态都会重置。
+- Windows 端同步改显示名与程序集名（`OneStation.Win`），代码命名空间保持不变。
+
 ## 0.7.9
 
 ### Git 面板：输出区可以拖高，提交框不再被挤掉

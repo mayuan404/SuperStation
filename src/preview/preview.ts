@@ -814,7 +814,7 @@ export function renderEmpty(
   host.innerHTML = ''
   const box = el('div', { class: 'empty' })
   box.append(el('div', { class: 'logo' }, '◆'))
-  box.append(el('h1', {}, 'SuperWorkStation'))
+  box.append(el('h1', {}, 'OneStation'))
   box.append(el('p', {}, '本地优先的工作台'))
   const hint = el('div', { class: 'hint' })
   hint.append(el('kbd', {}, '⌘O'), el('kbd', {}, '⌘P'), el('kbd', {}, '⌘K'))

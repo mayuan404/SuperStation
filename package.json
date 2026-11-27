@@ -1,9 +1,9 @@
 {
-  "name": "betternotebook",
+  "name": "onestation",
   "private": true,
-  "version": "0.7.9",
+  "version": "0.8.0",
   "type": "module",
-  "description": "SuperWorkStation — all-in-one local workstation for macOS (documents, files, terminal, remote repos)",
+  "description": "OneStation — all-in-one local workstation for macOS (documents, files, terminal, remote repos)",
   "scripts": {
     "dev": "vite",
     "typecheck": "tsc --noEmit",

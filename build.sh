@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 cd "$(dirname "$0")"
-APP="build/SuperWorkStation.app"
+APP="build/OneStation.app"
 echo "==> building web assets"
 if [ "$1" == "--dev" ]; then
   echo "   (skipping vite build, dev mode expects BNB_DEV_URL)"
@@ -23,7 +23,7 @@ fi
 echo "==> compiling swift"
 swiftc -O -swift-version 5 -target arm64-apple-macos13.0 \
   -framework AppKit -framework WebKit -framework CryptoKit \
-  -o "$APP/Contents/MacOS/SuperWorkStation" native/*.swift
+  -o "$APP/Contents/MacOS/OneStation" native/*.swift
 echo "==> codesign (ad-hoc)"
 codesign --force --deep --sign - "$APP" >/dev/null 2>&1 || true
 echo "==> done: $APP"

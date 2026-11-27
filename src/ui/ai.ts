@@ -23,7 +23,7 @@ export interface AIDeps {
 }
 
 const SYSTEM = [
-  '你是 SuperWorkStation 的笔记助手。回答简洁、直接，用中文。',
+  '你是 OneStation 的笔记助手。回答简洁、直接，用中文。',
   '当用户要求修改文本时，只输出修改后的文本本身：不要解释、不要加引号、不要用代码块包裹。',
   '当用户只是提问或分析时，正常回答，可以分点。'
 ].join('')

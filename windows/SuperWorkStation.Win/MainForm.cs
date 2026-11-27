@@ -34,7 +34,7 @@ internal sealed class MainForm : Form, IMessageFilter
 
     public MainForm()
     {
-        Text = "SuperWorkStation";
+        Text = "OneStation";
         FormBorderStyle = FormBorderStyle.None;
         StartPosition = FormStartPosition.CenterScreen;
         MinimumSize = new Size(760, 500);
