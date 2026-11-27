@@ -1523,6 +1523,7 @@ async function offerDraftRecovery(): Promise<void> {
   let list: { path: string; name: string; at: number; preview: string }[] = []
   try { list = await invoke('drafts.list') } catch { return }
   if (!list?.length) return
+  invoke('app.log', { line: `DRAFTS prompt count=${list.length}` }).catch(() => {})
   const names = list.slice(0, 8).map((d) => `· ${d.name || d.path}`).join('\n')
   const ok = await confirmDialog('发现未保存的草稿', `上次可能没有正常退出，以下内容尚未保存：\n\n${names}\n\n是否恢复？`)
   if (!ok) {
@@ -2339,9 +2340,11 @@ async function boot(): Promise<void> {
     const target = activePath ? S.state.docs.find((d) => d.path === activePath) : null
     if (target) S.setActive(target.id)
   }
-  await offerDraftRecovery()
-  // 只有远程工作区、没有本地根时也要渲染树
+  // 先渲染树：草稿恢复是个模态对话框，万一它弹出来（比如强制退出后留了草稿），
+  // 界面也已经是可用的，而不是白着等用户点。
   await sidebar.refresh()
+  syncActive()
+  await offerDraftRecovery()
   syncActive()
   renderTitle()
   if (!S.state.docs.length) setTimeout(() => editor.focus(), 100)
