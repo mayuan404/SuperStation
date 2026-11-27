@@ -167,8 +167,23 @@ export async function pushRepo(treePath: string): Promise<GitRun> {
   const first = await gitRun(treePath, 'git push 2>&1', 180)
   if (first.code === 0) return first
   const out = `${first.stdout}\n${first.stderr}`
-  // 新分支没有上游时 git 会直接 exit 128，只提示「没有 upstream」。
-  // 这种最常见的情况自动补一次 `push -u origin HEAD`，省得用户去终端敲。
+
+  // 情况一：上游分支存在，但名字和本地分支不一致（push.default=simple 下必然失败）。
+  // git 自己给了两条路：推同名分支，或推回它跟踪的那个分支。
+  // 默认选**安全**的那条：只推同名分支，绝不去改共享分支；要改上游就照提示手动执行。
+  if (/does not match[\s\S]{0,240}name of your current branch/i.test(out)) {
+    const upstream = /git push origin HEAD:(\S+)/.exec(out)?.[1] ?? ''
+    const retry = await gitRun(treePath, 'git push origin HEAD 2>&1', 180)
+    const note = [
+      '⚠ 当前分支跟踪的上游分支名与本地分支名不一致，这是 push.default=simple 的默认限制。',
+      '  已改为推到「同名」远端分支（不会动共享分支）。',
+      upstream ? `  如需更新原上游分支 ${upstream}，请手动执行：git push origin HEAD:${upstream}` : '',
+      ''
+    ].filter(Boolean).join('\n')
+    return { ...retry, stdout: note + retry.stdout, cmd: 'git push origin HEAD' }
+  }
+
+  // 情况二：分支完全没有上游，补一次 -u origin HEAD 顺手把跟踪关系建好
   if (/no upstream branch|has no upstream|set-upstream|no configured push destination/i.test(out)) {
     return gitRun(treePath, 'git push -u origin HEAD 2>&1', 180)
   }
