@@ -19,7 +19,7 @@ export interface GitStatusParsed {
 }
 
 export interface GitBranch { name: string; current: boolean }
-export interface GitCommit { hash: string; author: string; when: string; subject: string; graph?: string }
+export interface GitCommit { hash: string; author: string; when: string; subject: string; parents?: string[]; graph?: string }
 
 function codeOf(x: string, y: string): string {
   const xy = x + y
@@ -108,9 +108,10 @@ export function parseLogGraph(raw: string): GitCommit[] {
       const parts = line.slice(at + 1).split('\t')
       return {
         hash: parts[0] ?? '',
-        author: parts[1] ?? '',
-        when: parts[2] ?? '',
-        subject: parts.slice(3).join('\t'),
+        parents: (parts[1] ?? '').split(' ').filter(Boolean),
+        author: parts[2] ?? '',
+        when: parts[3] ?? '',
+        subject: parts.slice(4).join('\t'),
         graph,
       }
     })

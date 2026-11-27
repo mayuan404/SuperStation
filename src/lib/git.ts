@@ -95,10 +95,10 @@ export async function commitStat(dir: string, hash: string): Promise<GitRun> {
 }
 
 export async function readLog(treePath: string, n = 5): Promise<GitCommit[]> {
-  // --graph 直接把合并拓扑画出来，省得自己实现泳道算法；--all 让未合并的分支也进图
+  // 取父提交（%p），图形由 UI 侧按泳道自己画；--all 让未合并的分支也进图
   const run = await gitRun(
     treePath,
-    `git log --graph --date-order --all -n ${Math.max(1, n)} --pretty=format:'%x00%h%x09%an%x09%ar%x09%s'`,
+    `git log --date-order --all -n ${Math.max(1, n)} --pretty=format:'%x00%h%x09%p%x09%an%x09%ar%x09%s'`,
     25
   )
   return run.code === 0 ? parseLogGraph(run.stdout) : []

@@ -8,6 +8,7 @@ import {
   commit, discard, fetchRepo, pullRepo, pushRepo, readBranches, readDiff, readLog, readStatus,
   showCommit, switchBranch, type GitRun
 } from '../lib/git'
+import { graphRowSvg, graphWidth, laneColor, laneCount, layoutGraph, GRAPH_ROW_HEIGHT } from './gitgraph'
 import type { GitBranch, GitCommit, GitFile, GitStatusParsed } from '../lib/git-parse'
 
 const STATUS_TEXT: Record<string, string> = {
@@ -51,7 +52,7 @@ export function openGitPanel(treePath: string, title: string, opts: GitPanelOpts
       mkBtn('刷新', () => refresh())
     )
 
-    /* ---------- 左：变更 / 历史 + 提交 ---------- */
+    /* ---------- 上：变更 / 历史 + 提交 ---------- */
     const tabChanges = el('button', { class: 'git-tab active' }, '变更')
     const tabHistory = el('button', { class: 'git-tab' }, '历史')
     const tabs = el('div', { class: 'git-tabs' }, tabChanges, tabHistory)
@@ -62,17 +63,55 @@ export function openGitPanel(treePath: string, title: string, opts: GitPanelOpts
     const commitBtn = el('button', { class: 'primary' }, '提交选中')
     const lastLine = el('div', { class: 'git-last' })
     const commitBox = el('div', { class: 'git-commit' }, msg, el('div', { class: 'git-commit-bar' }, lastLine, commitBtn))
-    const left = el('div', { class: 'git-left' }, tabs, warn, listHead, list, commitBox)
+    const listArea = el('div', { class: 'git-list-area' }, tabs, warn, listHead, list, commitBox)
 
-    /* ---------- 右：diff ---------- */
-    const diffName = el('div', { class: 'git-diff-name' }, '选择左侧文件或提交查看改动')
+    /* ---------- 下：diff / 提交详情（整宽，不再挤在右半边） ---------- */
+    const diffName = el('div', { class: 'git-diff-name' }, '选择上面的文件或提交查看改动')
     const diffPre = el('pre', { class: 'git-diff' })
-    const right = el('div', { class: 'git-right' }, diffName, diffPre)
+    const detail = el('div', { class: 'git-detail' }, diffName, diffPre)
 
-    /* ---------- 底部输出 ---------- */
+    /* ---------- 底：命令输出 ---------- */
     const out = el('pre', { class: 'git-out' }, '尚未执行命令')
+    const outWrap = el('div', { class: 'git-out-wrap' }, out)
 
-    body.append(head, el('div', { class: 'git-body' }, left, right), out)
+    const splitMain = el('div', { class: 'git-hsplit', title: '拖动调整上半部分高度' })
+    const splitOut = el('div', { class: 'git-hsplit', title: '拖动调整输出区高度' })
+    const main = el('div', { class: 'git-main' }, listArea, splitMain, detail)
+    const foot = el('div', { class: 'git-foot' }, splitOut, outWrap)
+
+    body.append(head, main, foot)
+
+    /* ---------- 两处可拖拽分割线 ---------- */
+    // 按窗口高度取比例：小窗口下别让详情把列表挤没
+    let detailH = Math.max(150, Math.min(320, Math.round(window.innerHeight * 0.30)))
+    let outH = Math.max(120, Math.min(240, Math.round(window.innerHeight * 0.17)))
+    const maxFor = (px: number): number => Math.max(120, Math.min(px, Math.round(window.innerHeight * 0.62)))
+    const applySizes = (): void => {
+      detail.style.height = `${detailH}px`
+      outWrap.style.height = `${outH}px`
+    }
+    detail.style.height = `${detailH}px`
+    outWrap.style.height = `${outH}px`
+    function draggable(handle: HTMLElement, size: () => number, apply: (v: number) => void): void {
+      handle.addEventListener('mousedown', (ev) => {
+        ev.preventDefault()
+        const y0 = ev.clientY
+        const base = size()
+        const move = (e: MouseEvent): void => apply(maxFor(base - (e.clientY - y0)))
+        const up = (): void => {
+          document.removeEventListener('mousemove', move)
+          document.removeEventListener('mouseup', up)
+          document.body.style.cursor = ''
+          document.body.style.userSelect = ''
+        }
+        document.body.style.cursor = 'row-resize'
+        document.body.style.userSelect = 'none'
+        document.addEventListener('mousemove', move)
+        document.addEventListener('mouseup', up)
+      })
+    }
+    draggable(splitMain, () => detailH, (v) => { detailH = v; applySizes() })
+    draggable(splitOut, () => outH, (v) => { outH = v; applySizes() })
 
     /* ---------- 行为 ---------- */
     function setOutput(runs: GitRun[] | GitRun): void {
@@ -127,7 +166,7 @@ export function openGitPanel(treePath: string, title: string, opts: GitPanelOpts
       const alive = new Set(status.files.map((f) => f.path))
       selected = new Set(Array.from(selected).filter((p) => alive.has(p)))
       if (!selected.size) selected = new Set(alive)
-      if (activePath && !alive.has(activePath)) { activePath = ''; diffName.textContent = '选择左侧文件或提交查看改动'; clear(diffPre) }
+      if (activePath && !alive.has(activePath)) { activePath = ''; diffName.textContent = '选择上面的文件或提交查看改动'; clear(diffPre) }
       paintBranches()
       paintWarn()
       paintTabs()
@@ -237,40 +276,26 @@ export function openGitPanel(treePath: string, title: string, opts: GitPanelOpts
       }
     }
 
-    /** 把 git 的 ASCII 图形列渲染成等宽小块；提交点用强调色，其余压暗。
-     *  width 用来把所有行的图形列对齐（否则每行图形宽度不同，右侧文字会参差）。 */
-    function graphSpan(graph: string, width: number): HTMLElement {
-      const box = el('span', { class: 'git-graph' })
-      box.style.width = `${width}ch`
-      const padded = graph.padEnd(width, ' ')
-      for (const ch of padded) {
-        if (ch === '*') box.append(el('span', { class: 'dot' }, '*'))
-        else if (ch === '|' || ch === '/' || ch === '\\') box.append(el('span', { class: 'ln' }, ch))
-        else box.append(document.createTextNode(ch))
-      }
-      return box
-    }
-
     function paintHistory(): void {
       clear(list)
       clear(listHead)
-      const commitCount = log.filter((c) => c.hash).length
-      listHead.append(el('span', {}, `最近 ${commitCount} 条提交`), el('span', { class: 'git-graph-hint' }, '图形含未合并分支'))
-      if (!log.length) {
+      const commits = log.filter((c) => c.hash)
+      listHead.append(el('span', {}, `最近 ${commits.length} 条提交`))
+      if (!commits.length) {
         list.append(el('div', { class: 'git-empty' }, '还没有提交记录'))
         return
       }
-      const gw = log.reduce((m, c) => Math.max(m, (c.graph ?? '').length), 0)
-      for (const c of log) {
-        if (!c.hash) {
-          // 只有连线、没有提交的行：保持图形连续，不可点击
-          const blank = el('div', { class: 'git-row hist conn' })
-          if (c.graph) blank.append(graphSpan(c.graph, gw))
-          list.append(blank)
-          continue
-        }
+      const rows = layoutGraph(commits.map((c) => ({ ...c, parents: c.parents ?? [] })))
+      const lanes = laneCount(rows)
+      const gw = graphWidth(rows)
+      for (const r of rows) {
+        const c = r.commit as GitCommit
         const row = el('div', { class: 'git-row hist' + (c.hash === activeCommit ? ' active' : '') })
-        if (c.graph) row.append(graphSpan(c.graph, gw))
+        row.style.height = `${GRAPH_ROW_HEIGHT}px`
+        const svg = graphRowSvg(r, lanes, laneColor)
+        svg.style.width = `${gw}px`
+        svg.style.minWidth = `${gw}px`
+        row.append(svg)
         row.append(
           el('span', { class: 'git-hash' }, c.hash),
           el('span', { class: 'nm' }, c.subject),
@@ -280,7 +305,7 @@ export function openGitPanel(treePath: string, title: string, opts: GitPanelOpts
         row.addEventListener('click', () => {
           activeCommit = c.hash
           activePath = ''
-          for (const r of Array.from(list.querySelectorAll('.git-row'))) r.classList.toggle('active', r === row)
+          for (const rr of Array.from(list.querySelectorAll('.git-row'))) rr.classList.toggle('active', rr === row)
           void showCommitDiff(c)
         })
         list.append(row)
