@@ -194,19 +194,31 @@ export class TermSession {
     // xterm.js 默认忽略这条序列，所以 tmux 里「选中即复制到开发机剪贴板」一直不生效，
     // 只有反向（macOS → tmux）能通——因为那是浏览器原生粘贴。这里补上正向通道。
     this.term.parser.registerOscHandler(52, (data: string) => {
+      const log = (line: string): void => {
+        invoke('app.log', { line: `OSC52 ${line}` }).catch(() => {})
+      }
       try {
         const rest = data.startsWith('52;') ? data.slice(3) : data
         const sep = rest.indexOf(';')
-        if (sep < 0) return true
-        const payload = rest.slice(sep + 1)
-        if (!payload || payload === '?') return true
-        const bytes = Uint8Array.from(atob(payload), (c) => c.charCodeAt(0))
+        if (sep < 0) { log(`bad-frame len=${data.length}`); return true }
+        const payload = rest.slice(sep + 1).trim()
+        if (!payload || payload === '?') { log(`empty-payload target=${rest.slice(0, sep)}`); return true }
+        let bytes: Uint8Array
+        try {
+          bytes = Uint8Array.from(atob(payload), (c) => c.charCodeAt(0))
+        } catch {
+          log(`b64-fail len=${payload.length} head=${payload.slice(0, 12)}`)
+          return true
+        }
         const text = new TextDecoder().decode(bytes)
-        if (!text) return true
-        invoke('ui.copy', { text }).catch(() => {})
+        if (!text) { log(`empty-text len=${payload.length}`); return true }
+        invoke('ui.copy', { text })
+          .then(() => log(`copied bytes=${text.length}`))
+          .catch((e: any) => { log(`copy-fail ${String(e?.message ?? e).slice(0, 80)}`); })
         this.deps.toast('已复制到系统剪贴板', 1200)
         return true
-      } catch {
+      } catch (e: any) {
+        log(`exception ${String(e?.message ?? e).slice(0, 80)}`)
         return true
       }
     })
