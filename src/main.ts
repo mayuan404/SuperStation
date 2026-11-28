@@ -2172,6 +2172,11 @@ async function boot(): Promise<void> {
     if (payload?.id && payload.data) {
       const bin = atob(payload.data)
       const txt = new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0)))
+      // 诊断：确认 OSC 52 到底有没有从 pty 读进来（终端选中复制依赖它）
+      if (txt.includes(']52;')) {
+        const at = txt.indexOf(']52;')
+        invoke('app.log', { line: `PTY OSC52 len=${txt.length} head=${txt.slice(Math.max(0, at - 2), at + 12).replace(/[\x00-\x1f]/g, '.')}` }).catch(() => {})
+      }
       const prev = (ptyRecent.get(payload.id) ?? '') + txt
       ptyRecent.set(payload.id, prev.length > PTY_RECENT_MAX ? prev.slice(-PTY_RECENT_MAX) : prev)
     }
