@@ -1,7 +1,7 @@
 {
   "name": "onestation",
   "private": true,
-  "version": "0.9.13",
+  "version": "1.0.0",
   "type": "module",
   "description": "OneStation — all-in-one local workstation for macOS (documents, files, terminal, remote repos)",
   "scripts": {
