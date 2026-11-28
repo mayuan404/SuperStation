@@ -335,8 +335,21 @@ body {
   padding: 0 6px;
   background: var(--panel);
   border-bottom: .5px solid var(--line);
+  overflow: hidden;
+}
+/* 标签本体横向滚动，右侧「＋」固定，标签再多也点得到 */
+.tab-scroll {
+  flex: 1 1 auto; min-width: 0;
+  display: flex; align-items: center; gap: 2px;
   overflow-x: auto; overflow-y: hidden;
   scrollbar-width: none;
+}
+.tab-scroll::-webkit-scrollbar { display: none; }
+.tabbar .tab-add { flex: 0 0 auto; }
+/* 标签多的时候自动变窄，先压缩再滚动 */
+.tabbar.dense .tab { padding: 0 6px 0 7px; }
+.tabbar.dense .tab .nm { max-width: 74px; }
+.tabbar.dense .tab .tab-sub { max-width: 52px; }
 }
 .tabbar::-webkit-scrollbar { display: none; }
 

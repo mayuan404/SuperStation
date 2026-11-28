@@ -765,7 +765,8 @@ function syncActive(): void {
   if (browser?.visible()) browser.hide()
 
   if (!S.state.docs.length && !ui.tabbar.querySelector('.tab-hint')) {
-    ui.tabbar.append(el('div', { class: 'tab-hint' }, '双击空白处新建临时文件  ⌘N'))
+    ;(ui.tabbar.querySelector('.tab-scroll') ?? ui.tabbar)
+      .append(el('div', { class: 'tab-hint' }, '双击空白处新建临时文件  ⌘N'))
   }
   if (!ui.tabbar.dataset.wired) {
     ui.tabbar.dataset.wired = '1'

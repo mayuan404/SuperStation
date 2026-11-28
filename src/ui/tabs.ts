@@ -27,6 +27,19 @@ export function renderTabs(host: HTMLElement, docs: Doc[], activeId: string | nu
   }
   const detailOrdinals = new Map<string, number>()
 
+  // 标签放在内层滚动容器里，右侧的「＋」固定住，标签再多也不会把它挤出去
+  const scroll = el('div', { class: 'tab-scroll' })
+  if (!(host as any).__tabWheelBound) {
+    ;(host as any).__tabWheelBound = true
+    host.addEventListener('wheel', (ev: WheelEvent) => {
+      const box = host.querySelector('.tab-scroll') as HTMLElement | null
+      if (!box || box.scrollWidth <= box.clientWidth) return
+      if (Math.abs(ev.deltaY) <= Math.abs(ev.deltaX)) return
+      ev.preventDefault()
+      box.scrollLeft += ev.deltaY
+    }, { passive: false })
+  }
+
   for (const doc of docs) {
     const active = doc.id === activeId
     const tab = el('div', {
@@ -139,11 +152,22 @@ export function renderTabs(host: HTMLElement, docs: Doc[], activeId: string | nu
       actions.move(src, beforeId)
     })
 
-    host.append(tab)
+    scroll.append(tab)
     if (active && lastActive !== activeId) {
       lastActive = activeId
       requestAnimationFrame(() => tab.scrollIntoView({ block: 'nearest', inline: 'nearest' }))
     }
+  }
+
+  host.classList.toggle('dense', docs.length >= 9)
+  host.append(scroll)
+  // 当前标签必须可见：切到右侧的标签时自动滚过去
+  const activeEl = scroll.querySelector('.tab.active') as HTMLElement | null
+  if (activeEl) {
+    const left = activeEl.offsetLeft
+    const right = left + activeEl.offsetWidth
+    if (left < scroll.scrollLeft) scroll.scrollLeft = Math.max(0, left - 8)
+    else if (right > scroll.scrollLeft + scroll.clientWidth) scroll.scrollLeft = right - scroll.clientWidth + 8
   }
 
   const add = el('div', { class: 'tab-add', title: '新建临时文件  ⌘N' })
